@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<!DOCTYPE Plugin PUBLIC "sailpoint.dtd" "sailpoint.dtd">
+<Plugin name="tiny-mfa-plugin" displayName="Tiny MFA Plugin" version="1.0" disabled="false" certificationLevel="None" minSystemVersion="7.1" maxSystemVersion="7.2">
+  <Attributes>
+    <Map>     
+      <entry key="minUpgradableVersion" value="0.1"/>     
+      <entry key="settings">
+        <value>
+          <List>
+            <Setting name="sharedSecret" dataType="string" defaultValue="7h1sV4lu3Mu57B3Ch4n63d!" helpText="Define a shared secret for your totp service." label="shared secret"/>
+          	<Setting name="useIndivudualSecrets" dataType="boolean" defaultValue="false" helpText="This will enable individual secrets for your users." label="use individual secrets"/>
+          </List>
+        </value>
+      </entry>     
+      <entry key="snippets">
+        <value>
+          <List>
+          </List>
+        </value>
+      </entry>      
+      <entry key="restResources">
+        <value>
+          <List>
+            <String>de.whisperedshouts.identityiq.rest.TinyMfaService</String>
+          </List>
+        </value>
+      </entry>
+    </Map>
+  </Attributes>
+</Plugin>
