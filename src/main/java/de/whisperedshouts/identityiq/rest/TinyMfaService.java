@@ -163,21 +163,6 @@ public class TinyMfaService extends BasePluginResource {
     }
     return TinyMfaService.toHexString(mac.doFinal(data));
   }
-  
-  public static byte[] hmac_sha1(String crypto, byte[] keyBytes,
-      byte[] text)
-  {
-      try {
-          Mac hmac;
-          hmac = Mac.getInstance(crypto);
-          SecretKeySpec macKey =
-              new SecretKeySpec(keyBytes, "RAW");
-          hmac.init(macKey);
-          return hmac.doFinal(text);
-      } catch (GeneralSecurityException gse) {
-          throw new UndeclaredThrowableException(gse);
-      }
-  }
 	
 	public String returnPasswordFromDB(String identityName) throws GeneralException, SQLException {
 		if(_logger.isDebugEnabled()) {
