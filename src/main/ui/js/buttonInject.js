@@ -4,7 +4,7 @@ jQuery(document).ready(function(){
         .before(
             '<li class="dropdown">' +
             '		<a href="' + url + '" tabindex="0" role="menuitem" title="Multifactor Authentication">' +
-            '			<i role="presenation" class="fa fa-key fa-lg example"></i>' +
+            '			<i role="presenation" class="fa fa-mobile fa-lg example"></i>' +
             '		</a>' +
             '</li>'
         );
