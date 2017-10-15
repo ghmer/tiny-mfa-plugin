@@ -12,15 +12,17 @@
 	app.controller('QRCodeController', function($scope) {
 		$scope.headline = 'Your QRCode';
 		
-		function populateTable($scope, $http) {
+		function populateQrCode($scope, $http) {
 			$http({
 		        method : "GET",
-		        url : PluginHelper.getPluginRestUrl('password-pronunciation') + '/data'
+		        url : PluginHelper.getPluginRestUrl('tiny-mfa') + '/demoQrCodeData'
 		    }).then(function mySuccess(response) {
-		        $scope.data1 = response.data;
+		        $scope.qrCode = response.data;
 		    }, function myError(response) {
-		        $scope.data1 = response.statusText;
+		        $scope.qrCode = response.statusText;
 		    });
 		};
+		
+		populateQrCode($scope, $http);
 	});
 }());

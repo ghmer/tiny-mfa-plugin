@@ -1,8 +1,6 @@
 package de.whisperedshouts.identityiq.rest;
 
 import java.io.StringWriter;
-import java.lang.reflect.UndeclaredThrowableException;
-import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
@@ -21,6 +19,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 
 import org.apache.commons.codec.binary.Base32;
 import org.apache.log4j.Logger;
@@ -39,7 +38,7 @@ public class TinyMfaService extends BasePluginResource {
   //this is the default, static width used in the dynamic truncation
   public static final int DYNAMIC_TRUNCATION_WIDTH = 4;
   
-  final String s = "otpauth://totp/Example.com:alice@example.com?algorithm=SHA1&digits=6&issuer=Example.com&period=30&secret=K3XT7VEUS7JFJVCX";
+  final String s = "otpauth://totp/%s:%s@%s?algorithm=SHA1&digits=6&issuer=%s&period=30&secret=%s";
 	public static final String SQL_RETRIEVE_PASSWORD_QUERY = "SELECT USERPASSWORD FROM MFA_ACCOUNTS WHERE ACCOUNT=?";
 	public  static final Logger _logger = Logger.getLogger(TinyMfaService.class);
 	
@@ -48,7 +47,17 @@ public class TinyMfaService extends BasePluginResource {
 	public String getPluginName() {
 		return "tiny-mfa-plugin";
 	}
-
+	
+	@GET
+	@Produces(MediaType.TEXT_PLAIN)
+	@Path("demoQrCodeData")
+	public Response getDemoQrCodeData() {
+	  String issuer = "sailpoint.labs";
+	  String identityName = "bob";
+	  String secret = "K3XT7VEUS7JFJVCX";
+	  
+	  return Response.ok().entity(String.format(s, issuer, identityName, issuer, issuer, secret)).build();
+	}
 	@GET
 	@Path("validateToken/{identityName}/{token}")
 	public Boolean validateToken(@PathParam("identityName") String identityName, @PathParam("token") String token) {

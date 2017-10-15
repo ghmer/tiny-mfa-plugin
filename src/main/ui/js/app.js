@@ -17,7 +17,7 @@
 		
 		.when('/qrcode', {
 			templateUrl : PluginHelper.getPluginFileUrl('tiny-mfa-plugin', 'ui/partials/qrcode.html'),
-			controller  : 'QRCodeontroller'
+			controller  : 'QRCodeController'
 		})
 
 		.otherwise({redirectTo: '/'});
