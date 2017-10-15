@@ -1,6 +1,5 @@
 package de.whisperedshouts.identityiq.rest;
 
-import java.io.StringWriter;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
@@ -8,7 +7,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Formatter;
+import java.util.Arrays;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 import javax.crypto.Mac;
@@ -24,6 +24,7 @@ import javax.ws.rs.core.Response;
 import org.apache.commons.codec.binary.Base32;
 import org.apache.log4j.Logger;
 
+import sailpoint.plugin.PluginBaseHelper;
 import sailpoint.rest.plugin.AllowAll;
 import sailpoint.rest.plugin.BasePluginResource;
 import sailpoint.tools.GeneralException;
@@ -33,175 +34,445 @@ import sailpoint.tools.GeneralException;
 @Produces(MediaType.TEXT_PLAIN)
 @AllowAll
 public class TinyMfaService extends BasePluginResource {
+  //a logger object. Make use of it!
+  public static final Logger _logger = Logger.getLogger(TinyMfaService.class);
+  
   //this is the algorithm that is used to generate the rfc2104hmac hexstring
   public static final String HMAC_SHA1_ALGORITHM = "HmacSHA1";
+  
   //this is the default, static width used in the dynamic truncation
   public static final int DYNAMIC_TRUNCATION_WIDTH = 4;
   
-  final String s = "otpauth://totp/%s:%s@%s?algorithm=SHA1&digits=6&issuer=%s&period=30&secret=%s";
-	public static final String SQL_RETRIEVE_PASSWORD_QUERY = "SELECT USERPASSWORD FROM MFA_ACCOUNTS WHERE ACCOUNT_NAME=?";
-	public  static final Logger _logger = Logger.getLogger(TinyMfaService.class);
-	
-    
-	@Override
-	public String getPluginName() {
-		return "tiny-mfa-plugin";
-	}
-	
-	@GET
-	@Produces(MediaType.TEXT_PLAIN)
-	@Path("demoQrCodeData")
-	public Response getDemoQrCodeData() {
-	  String issuer = "sailpoint.labs";
-	  String identityName = "bob";
-	  String secret = "K3XT7VEUS7JFJVCX";
-	  
-	  return Response.ok().entity(String.format(s, issuer, identityName, issuer, issuer, secret)).build();
-	}
-	@GET
-	@Path("validateToken/{identityName}/{token}")
-	public Boolean validateToken(@PathParam("identityName") String identityName, @PathParam("token") String token) {
-		if(_logger.isDebugEnabled()) {
-			_logger.debug(String.format("ENTERING method %s(identityName %s, token %s)", "authenticateToken", identityName, token));
-		}
-		
-		Boolean isAuthenticated = false;
-		try {
-		  //TODO: String userPassword = 
-		  returnPasswordFromDB(identityName);
-		  
-    } catch (GeneralException | SQLException e) {
+  //that big is our key to be
+  public static final int FINAL_SECRET_SIZE = 16;
+  
+  //a format string for the qr code
+  final static String QR_CODE_FORMATSTRING = "otpauth://totp/%s:%s@%s?algorithm=SHA1&digits=6&issuer=%s&period=30&secret=%s";
+  
+  //the SQL query used to retrieve the userkey from the database
+  public static final String SQL_RETRIEVE_PASSWORD_QUERY = "SELECT USERPASSWORD FROM MFA_ACCOUNTS WHERE ACCOUNT_NAME=?";
+  
+  //insert a new account into the database. This happens on first usage of the plugin
+  public static final String SQL_CREATE_NEW_ACCOUNT_QUERY = "INSERT INTO MFA_ACCOUNTS(ACCOUNT_NAME, USERPASSWORD) VALUES(?,?)";
+
+  //user exists query
+  public static final String SQL_COUNT_ACCOUNT_NAME_QUERY = "SELECT COUNT(USERPASSWORD) FROM MFA_ACCOUNTS WHERE ACCOUNT_NAME = ?";
+
+  @Override
+  public String getPluginName() {
+    return "tiny-mfa-plugin";
+  }
+  
+  /**
+   * generates the appropriate totp url that is transferred within the
+   * QRCode. This can be used with google authenticator.
+   * If the account cannot be found in the database, it will be created
+   * 
+   * @return the application-url to send with the QRCode
+   */
+  @GET
+  @Produces(MediaType.TEXT_PLAIN)
+  @Path("generateQrCodeData")
+  public Response getQrCodeData() {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(
+          String.format("ENTERING method %s()", "getQrCodeData"));
+    }
+    String issuer = PluginBaseHelper.getSettingString(getPluginName(), "issuerDomain");
+    String identityName = null;
+    try {
+      identityName = getLoggedInUserName();
+    } catch (GeneralException e) {
       _logger.error(e.getMessage());
     }
-		
-		if(_logger.isDebugEnabled()) {
-			_logger.debug(String.format("LEAVING method %s (returns: %s)", "authenticateToken", isAuthenticated));
-		}
-		return isAuthenticated;
-	}
-	
-	public static String generateValidToken(Long timestamp, String key) throws GeneralException {
-	  String token     = null;
-	  byte[] keyBytes  = new Base32().decode(key);
-	  // let's process
-	  try {
-	    //generate the rfc2104hmac String out of timestamp and key
-      String rfc2104hmac   = TinyMfaService.calculateRFC2104HMAC(timestamp, keyBytes);
-      
-      //get the integer value of the last 4 bytes of the rfc2103 hex string (the last character)
-      //this is our base for our dynamic truncation
-      int dynamicTruncationStart = Integer.parseInt(rfc2104hmac.substring(rfc2104hmac.length() - 1), 16);
-      
-      //split the hmac hex string into an array of 8 bytes (2 characters each)
-      String[] eightBytesArray = splitTo8BytesArray(rfc2104hmac);
-      
-      //dynamically truncate the string
-      String dynamicTruncatedString = dynamicTruncate(eightBytesArray, 
-          dynamicTruncationStart, 
-          TinyMfaService.DYNAMIC_TRUNCATION_WIDTH);
-      
-      //get our token, pad it properly with trailing zeroes
-      token = String.format("%06d",
-          generatePaddedToken(hexStringToDecimal(dynamicTruncatedString)));
-    } catch (InvalidKeyException | SignatureException | NoSuchAlgorithmException e) {
-      _logger.error(e.getMessage(),e);
-      throw new GeneralException(e.getMessage());
-    }
-	  return token;
-	}
-	
-	public static String[] splitTo8BytesArray(String data) {
-    String[] array = new String[20];
-    char tempChar = 0;
-    int positionInArray = 0;
-    for(int positionInString = 0; positionInString < data.length(); positionInString++) {
-      if(positionInString % 2 == 0) {
-        tempChar = data.charAt(positionInString);
-      }else {
-        String eightBytes = String.valueOf(tempChar) + String.valueOf(data.charAt(positionInString));
-        array[positionInArray] = eightBytes;
-        positionInArray++;
+    
+    boolean userExists = false;
+    if(identityName != null) {
+      try {
+        userExists = (returnCountForIdentityName(identityName) == 1);
+      } catch (GeneralException | SQLException e) {
+        _logger.error(e.getMessage());
       }
     }
     
-    return array;
-  }
-	
-	public static String dynamicTruncate(String[] array, int start, int width) {
-    StringWriter stringWriter = new StringWriter();
-    for(int i = start; i < start + width; i++) {
-      stringWriter.write(array[i]);
-    }
+    String userPassword = null;
+    if(!userExists) {
+      try {
+        createAccount(identityName);
+      } catch (Exception e) {
+        _logger.error(e.getMessage());
+      } 
+    } 
     
-    return stringWriter.toString();
+    try {
+      userPassword = returnPasswordFromDB(identityName);
+    } catch (GeneralException | SQLException e) {
+      _logger.error(e.getMessage());
+    }
+        
+    String qrCodeUrl = String.format(QR_CODE_FORMATSTRING, issuer, identityName, issuer, issuer, userPassword);
+
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "getQrCodeData", qrCodeUrl));
+    }
+    return Response.ok().entity(qrCodeUrl).build();
   }
 
-  public static String toHexString(byte[] bytes) {
-    Formatter formatter = new Formatter();
-    
-    for (byte b : bytes) {
-      formatter.format("%02x", b);
+  /**
+   * validates a token for an identity
+   * @param identityName the name of the account to check the token for
+   * @param token the token to check
+   * @return true whether the token could be validated
+   */
+  @GET
+  @Path("validateToken/{identityName}/{token}")
+  public Boolean validateToken(@PathParam("identityName") String identityName, @PathParam("token") String token) {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(
+          String.format("ENTERING method %s(identityName %s, token %s)", "authenticateToken", identityName, token));
     }
 
-    String result = formatter.toString();
-    if(formatter != null) {
-      formatter.close();
+    //get the current timestamp to generate the token
+    long currentUnixTime    = getValidUnixTimeStamp();
+    int generatedToken      = 0;
+    //sanitize the token (just to be sure)
+    int sanitizedToken      = TinyMfaService.sanitizeToken(token);
+    Boolean isAuthenticated = false;
+    try {
+      String userPassword = returnPasswordFromDB(identityName);
+      generatedToken = TinyMfaService.generateValidToken(currentUnixTime, userPassword);
+      
+      //if codes match, you are welcome
+      isAuthenticated = (generatedToken == sanitizedToken);
+
+    } catch (GeneralException | SQLException e) {
+      _logger.error(e.getMessage());
+    }
+
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "authenticateToken", isAuthenticated));
+    }
+    return isAuthenticated;
+  }
+  
+  /**
+   * Creates an account on the database
+   * 
+   * @param identityName the account to create
+   * @return true whether the creation ended sucessfully
+   * @throws GeneralException
+   * @throws SQLException
+   */
+  private Boolean createAccount(String identityName) throws GeneralException, SQLException {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("ENTERING method %s(identityName %s)", "createAccount", identityName));
+    }
+    
+    //generate a new secret key. User must not be bothered with this
+    String generatedPassword = TinyMfaService.generateBase32EncodedSecretKey();
+    
+    Boolean result = false;
+    Connection connection = getConnection();
+    PreparedStatement prepStatement = connection.prepareStatement(TinyMfaService.SQL_CREATE_NEW_ACCOUNT_QUERY);
+
+    prepStatement.setString(1, identityName);
+    prepStatement.setString(2, generatedPassword);
+
+    int resultCode = prepStatement.executeUpdate();
+    if(resultCode != 0) {
+      result = true;
+    }
+
+    prepStatement.close();
+    connection.close();
+
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "createAccount", result));
     }
     return result;
   }
   
-  public static Long hexStringToDecimal(String hexString) {
-    long y = Long.parseLong(hexString.trim(), 16);
-    return y;
-  }
-  
-  public static Long generatePaddedToken(Long truncatedString) {
-    return truncatedString % 1000000;
-  }
-
-  public static String calculateRFC2104HMAC(long timestamp, byte[] key)
-    throws SignatureException, NoSuchAlgorithmException, InvalidKeyException {
+  /**
+   * Calculates the hmac hash and returns its byteArray representation
+   * 
+   * @param data the message to hash (usually a timestamp)
+   * @param key the secretKey to use
+   * @return the byteArray representation of the calculated hmac
+   * @throws SignatureException
+   * @throws NoSuchAlgorithmException
+   * @throws InvalidKeyException
+   */
+  private static byte[] calculateRFC2104HMAC(byte[] data, byte[] key)
+      throws SignatureException, NoSuchAlgorithmException, InvalidKeyException {
     SecretKeySpec signingKey = new SecretKeySpec(key, HMAC_SHA1_ALGORITHM);
     Mac mac = Mac.getInstance(HMAC_SHA1_ALGORITHM);
     mac.init(signingKey);
-    
-    byte[] data = new byte[8];
-    long value = timestamp;
-    for (int i = 8; i-- > 0; value >>>= 8) {
-      data[i] = (byte) value;
-    }
-    return TinyMfaService.toHexString(mac.doFinal(data));
+
+    return mac.doFinal(data);
   }
-	
-	public String returnPasswordFromDB(String identityName) throws GeneralException, SQLException {
-		if(_logger.isDebugEnabled()) {
-			_logger.debug(String.format("ENTERING method %s(identityName %s)", "returnPasswordFromDB", identityName));
-		}
-		String result = null;
-		Connection connection = getConnection();
-		PreparedStatement prepStatement = connection.prepareStatement(TinyMfaService.SQL_RETRIEVE_PASSWORD_QUERY);
-		
-		prepStatement.setString(1, identityName);
-		
-		ResultSet rs = prepStatement.executeQuery();
-		if(rs.next()) {
-			result = rs.getString(1);
-		}
-		
-		rs.close();
-		prepStatement.close();
-		connection.close();
-		
-		if(_logger.isDebugEnabled()) {
-			_logger.debug(String.format("LEAVING method %s (returns: %s)", "returnSessionIndexFromDb", result));
-		}
-		return result;
-	}
-	
-	public static void main(String[] args) throws GeneralException {
-	  long unixTime = System.currentTimeMillis() / TimeUnit.SECONDS.toMillis(30);
-    System.out.println(unixTime);  
-    System.out.println(TinyMfaService.generateValidToken(unixTime, "XPPHTHD2QTADIBXJ"));
+  
+  /**
+   * Generates a new secretKey and encodes it to base32
+   * @return the base32 encoded secretKey
+   */
+  private static String generateBase32EncodedSecretKey() {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("ENTERING method %s()", "generateBase32EncodedSecretKey"));
+    }
+    // Allocating the buffer
+    byte[] buffer = new byte[128];
+
+    // Filling the buffer with random numbers.
+    // Notice: you want to reuse the same random generator
+    // while generating larger random number sequences.
+    new Random().nextBytes(buffer);
+
+    // Getting the key and converting it to Base32
+    Base32 codec = new Base32();
+    byte[] secretKey = Arrays.copyOf(buffer, TinyMfaService.FINAL_SECRET_SIZE);
+    byte[] bEncodedKey = codec.encode(secretKey);
+    String encodedKey = new String(bEncodedKey);
+
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "generateBase32EncodedSecretKey", encodedKey));
+    }
+    return encodedKey;
+  }
+
+  /**
+   * generates a valid token for a timestamp and a base32 encoded secretKey
+   * @param message the timestamp to use when calculating the token
+   * @param key the base32 encoded secretKey
+   * @return the current valid token for this key
+   * @throws GeneralException
+   */
+  private static int generateValidToken(Long message, String key) throws GeneralException {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("ENTERING method %s(message %s, key %s)", "generateValidToken", message, key));
+    }
+    int token           = 0;
+    byte[] keyBytes     = null;
+    byte[] messageBytes = null;
+    //let's process
+    try {
+      //the key is base32 encoded - that's a google thingy
+      keyBytes      = new Base32().decode(key);
+      //get a reversed 8byte array
+      messageBytes  = TinyMfaService.longToByteArray(message, 8, true);
+      // generate the rfc2104hmac String out of timestamp and key
+      byte[] rfc2104hmac = TinyMfaService.calculateRFC2104HMAC(messageBytes, keyBytes);
+      
+      int offset = rfc2104hmac[20 - 1] & 0xF;
+      if (_logger.isDebugEnabled()) {
+        _logger.debug("offset: " + (int) offset);
+      }
+      // We're using a long because Java hasn't got unsigned int.
+      long truncatedHash = 0;
+      for (int i = 0; i < DYNAMIC_TRUNCATION_WIDTH; ++i) {
+        // shift 8bit to the left - we are going to read in 2 characters with 4 bytes each
+        truncatedHash <<= 8;
+        // perform a bitwise inclusive OR on the next offset
+        truncatedHash |= (rfc2104hmac[offset + i] & 0xFF);
+      }
+
+      truncatedHash &= 0x7FFFFFFF;
+      truncatedHash %= 1000000;
+      
+      token = (int)truncatedHash;
+
+    } catch (InvalidKeyException | SignatureException | NoSuchAlgorithmException e) {
+      _logger.error(e.getMessage(), e);
+      throw new GeneralException(e.getMessage());
+    }
     
-	}
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "generateValidToken", token));
+    }
+    return token;
+  }
+  
+  /**
+   * returns a "corrected" timestamp of the system.
+   * @return the timestamp
+   */
+  private static long getValidUnixTimeStamp() {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(
+          String.format("ENTERING method %s()", "getValidUnixTimeStamp"));
+    }
+    long systemTime = System.currentTimeMillis();
+    long unixTime = systemTime - (systemTime % 30);
+    unixTime = (long) Math.floor(unixTime / TimeUnit.SECONDS.toMillis(30));
+    
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "getValidUnixTimeStamp", unixTime));
+    }
+    return unixTime;
+  }
+
+  /**
+   * converts a long to a byteArray. You can choose how big the byteArray shall be, as 
+   * well as whether the array shall be in reversed order
+   * 
+   * @param message the long to convert to a byteArray
+   * @param arrayLength the length of the new array
+   * @param reversed whether the array shall be reversed
+   * @return the byteArray according to specification
+   */
+  private static byte[] longToByteArray(long message, int arrayLength, boolean reversed) { 
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(
+          String.format("ENTERING method %s(message %s, arrayLength %s, reversed %s)", "authenticateToken", message, arrayLength, reversed));
+    }
+    //define the array
+    byte[] data = new byte[arrayLength];
+    long value = message;
+    if(reversed) {
+      for (int i = arrayLength; i-- > 0; value >>>= arrayLength) {
+        data[i] = (byte) value;
+      }
+    } else {
+      for (int i = 0; i-- > arrayLength; value >>>= 0) {
+        data[i] = (byte) value;
+      }
+    }
+     
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "generateValidToken", data));
+    }
+    return data;
+  }
+  
+  /**
+   * Some minor sanitation efforts to make the string input more reliable
+   * 
+   * @param token the token to sanitize
+   * @return a sanitizes token
+   */
+  private static int sanitizeToken(String token) {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(
+          String.format("ENTERING method %s(token %s)", "sanitizeToken", token));
+    }
+    int result = 0;
+    //the default
+    int position = 0;
+    token = token.trim();
+    int[] sanitizedToken = new int[6];
+    for(char c : token.toCharArray()) {
+      if(position >= sanitizedToken.length) {
+        break;
+      }
+      int charCode = (int) c;
+      int sanitizedChar = 0;
+      if (_logger.isDebugEnabled()) {
+        _logger.debug("charcode: " + charCode);
+      }
+      switch(charCode) {
+        case 32:  break; //space
+        case 33:  sanitizedChar = 49; break; //exclamation mark to 1
+        case 66:  sanitizedChar = 56; break; //capital B to 8
+        case 71:  sanitizedChar = 54; break; //capital G to 6
+        case 73:  sanitizedChar = 49; break; //capital I to 1
+        case 79:  sanitizedChar = 48; break; //capital O to 0
+        case 98:  sanitizedChar = 56; break; //smaller b to 8      
+        case 103: sanitizedChar = 57; break; //smaller g to 9
+        case 105: sanitizedChar = 49; break; //smaller i to 1
+        case 111: sanitizedChar = 48; break; //smaller o to 0
+        
+        default: sanitizedChar = charCode; break;
+      }
+      
+      if(sanitizedChar >= 48 && 57 >= sanitizedChar) {
+        sanitizedToken[position] = Character.getNumericValue(sanitizedChar);
+        
+        if (_logger.isDebugEnabled()) {
+          _logger.debug("sanitized: " + sanitizedChar + " at position " + position + ", that's " + Character.getNumericValue(sanitizedChar));
+        }
+        position++;
+      } else {
+        if (_logger.isDebugEnabled()) {
+          _logger.debug("ignored: " + sanitizedChar);
+        }
+      }
+    }
+    
+    for(int i = 0; i < 6; i++) {
+      if (_logger.isDebugEnabled()) {
+        _logger.debug(sanitizedToken[i]);
+      }
+      result += sanitizedToken[i];
+      if(i<5)
+        result *= 10;
+    }
+    
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "sanitizeToken", result));
+    }
+    return result;
+  }
+  
+  /**
+   * returns the amount of entries found in the database for a given identityName
+   * @param identityName the name of the account to check
+   * @return the amount of entries found
+   * @throws GeneralException
+   * @throws SQLException
+   */
+  private int returnCountForIdentityName(String identityName) throws GeneralException, SQLException {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("ENTERING method %s(identityName %s)", "returnCountForIdentityName", identityName));
+    }
+    int result = 0;
+    Connection connection = getConnection();
+    PreparedStatement prepStatement = connection.prepareStatement(TinyMfaService.SQL_COUNT_ACCOUNT_NAME_QUERY);
+
+    prepStatement.setString(1, identityName);
+
+    ResultSet rs = prepStatement.executeQuery();
+    if (rs.next()) {
+      result = rs.getInt(1);
+    }
+
+    rs.close();
+    prepStatement.close();
+    connection.close();
+
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "returnCountForIdentityName", result));
+    }
+    return result;
+  }
+  
+  /**
+   * Returns the base32 encoded password of the account
+   * @param identityName the name of the account to query for
+   * @return the base32 encoded password
+   * @throws GeneralException
+   * @throws SQLException
+   */
+  private String returnPasswordFromDB(String identityName) throws GeneralException, SQLException {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("ENTERING method %s(identityName %s)", "returnPasswordFromDB", identityName));
+    }
+    String result = null;
+    Connection connection = getConnection();
+    PreparedStatement prepStatement = connection.prepareStatement(TinyMfaService.SQL_RETRIEVE_PASSWORD_QUERY);
+
+    prepStatement.setString(1, identityName);
+
+    ResultSet rs = prepStatement.executeQuery();
+    if (rs.next()) {
+      result = rs.getString(1);
+    }
+
+    rs.close();
+    prepStatement.close();
+    connection.close();
+
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "returnSessionIndexFromDb", result));
+    }
+    return result;
+  }
 }

@@ -9,17 +9,19 @@
 	});
 	
 	/** QRCode Controller **/
-	app.controller('QRCodeController', function($scope) {
+	app.controller('QRCodeController', function($scope, $http) {
 		$scope.headline = 'Your QRCode';
 		
 		function populateQrCode($scope, $http) {
 			$http({
 		        method : "GET",
-		        url : PluginHelper.getPluginRestUrl('tiny-mfa') + '/demoQrCodeData'
+		        url : PluginHelper.getPluginRestUrl('tiny-mfa') + '/generateQrCodeData'
 		    }).then(function mySuccess(response) {
-		        $scope.qrCode = response.data;
+		    	var el = kjua({text: response.data});
+		        $scope.qrCode = el.src;
+		        $scope.errorMessage = "";
 		    }, function myError(response) {
-		        $scope.qrCode = response.statusText;
+		        $scope.errorMessage = response.statusText;
 		    });
 		};
 		

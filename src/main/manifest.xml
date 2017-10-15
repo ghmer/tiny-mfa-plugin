@@ -7,14 +7,23 @@
       <entry key="settings">
         <value>
           <List>
-            <Setting name="sharedSecret" dataType="string" defaultValue="7h1sV4lu3Mu57B3Ch4n63d!" helpText="Define a shared secret for your totp service." label="shared secret"/>
-          	<Setting name="useIndivudualSecrets" dataType="boolean" defaultValue="false" helpText="This will enable individual secrets for your users." label="use individual secrets"/>
+            <Setting name="issuerDomain" dataType="string" defaultValue="sailpoint.labs" helpText="define the domainname that gets appended to the account. This is for convinience of the user and does not have any effects on token calculation" label="issuer domain"/>
           </List>
+        </value>
+      </entry>
+      <entry key="fullPage">
+        <value>
+          <FullPage title="Tiny Multifactor-Authentication Plugin" />
         </value>
       </entry>     
       <entry key="snippets">
         <value>
           <List>
+            <Snippet regexPattern=".*">
+              <Scripts>
+                <String>ui/js/buttonInject.js</String>
+              </Scripts>
+            </Snippet>
           </List>
         </value>
       </entry>      
