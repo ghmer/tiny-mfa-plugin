@@ -39,7 +39,7 @@ public class TinyMfaService extends BasePluginResource {
   public static final int DYNAMIC_TRUNCATION_WIDTH = 4;
   
   final String s = "otpauth://totp/%s:%s@%s?algorithm=SHA1&digits=6&issuer=%s&period=30&secret=%s";
-	public static final String SQL_RETRIEVE_PASSWORD_QUERY = "SELECT USERPASSWORD FROM MFA_ACCOUNTS WHERE ACCOUNT=?";
+	public static final String SQL_RETRIEVE_PASSWORD_QUERY = "SELECT USERPASSWORD FROM MFA_ACCOUNTS WHERE ACCOUNT_NAME=?";
 	public  static final Logger _logger = Logger.getLogger(TinyMfaService.class);
 	
     
