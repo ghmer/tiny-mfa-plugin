@@ -19,6 +19,11 @@
 			templateUrl : PluginHelper.getPluginFileUrl('tiny-mfa-plugin', 'ui/partials/qrcode.html'),
 			controller  : 'QRCodeController'
 		})
+		
+		.when('/validate', {
+			templateUrl : PluginHelper.getPluginFileUrl('tiny-mfa-plugin', 'ui/partials/validate.html'),
+			controller  : 'ValidateController'
+		})
 
 		.otherwise({redirectTo: '/'});
 	});

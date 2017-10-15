@@ -5,7 +5,7 @@
 	
 	/** HOME Controller **/
 	app.controller('HomeController', function($scope) {
-		$scope.headline = 'General Information';
+		$scope.headline = 'Welcome!';
 	});
 	
 	/** QRCode Controller **/
@@ -26,5 +26,29 @@
 		};
 		
 		populateQrCode($scope, $http);
+	});
+	
+	/** ValidateController Controller **/
+	app.controller('ValidateController', function($scope, $http) {
+		$scope.headline = 'Validate Your QRCode';
+		
+		$scope.validateToken = function(tokenValue){
+			$http({
+		        method : "GET",
+		        url : PluginHelper.getPluginRestUrl('tiny-mfa') + '/validateToken/' + PluginHelper.getCurrentUsername() + '/' + tokenValue
+		    }).then(function mySuccess(response) {
+		    	if(response.data == "true") {
+		    		$scope.validationSuccess = "Token validation successful";
+			    	$scope.validationError = null;
+		    	} else {
+		    		$scope.validationError = "Token validation failed - " + response.data;
+			    	$scope.validationSuccess = null;
+		    	}
+		    	
+		    }, function myError(response) {
+		    	$scope.validationError = "Token validation failed - " + response.data;
+		    	$scope.validationSuccess = null;
+		    });
+		};
 	});
 }());

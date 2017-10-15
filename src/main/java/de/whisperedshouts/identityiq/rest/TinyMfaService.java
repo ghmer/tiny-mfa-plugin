@@ -125,6 +125,7 @@ public class TinyMfaService extends BasePluginResource {
    * @return true whether the token could be validated
    */
   @GET
+  @Produces(MediaType.TEXT_PLAIN)
   @Path("validateToken/{identityName}/{token}")
   public Boolean validateToken(@PathParam("identityName") String identityName, @PathParam("token") String token) {
     if (_logger.isDebugEnabled()) {
@@ -263,8 +264,8 @@ public class TinyMfaService extends BasePluginResource {
       byte[] rfc2104hmac = TinyMfaService.calculateRFC2104HMAC(messageBytes, keyBytes);
       
       int offset = rfc2104hmac[20 - 1] & 0xF;
-      if (_logger.isDebugEnabled()) {
-        _logger.debug("offset: " + (int) offset);
+      if (_logger.isTraceEnabled()) {
+        _logger.trace(String.format("using offset %d for dynamic truncation", (int) offset));
       }
       // We're using a long because Java hasn't got unsigned int.
       long truncatedHash = 0;
@@ -365,9 +366,7 @@ public class TinyMfaService extends BasePluginResource {
       }
       int charCode = (int) c;
       int sanitizedChar = 0;
-      if (_logger.isDebugEnabled()) {
-        _logger.debug("charcode: " + charCode);
-      }
+      
       switch(charCode) {
         case 32:  break; //space
         case 33:  sanitizedChar = 49; break; //exclamation mark to 1
@@ -386,21 +385,18 @@ public class TinyMfaService extends BasePluginResource {
       if(sanitizedChar >= 48 && 57 >= sanitizedChar) {
         sanitizedToken[position] = Character.getNumericValue(sanitizedChar);
         
-        if (_logger.isDebugEnabled()) {
-          _logger.debug("sanitized: " + sanitizedChar + " at position " + position + ", that's " + Character.getNumericValue(sanitizedChar));
+        if (_logger.isTraceEnabled()) {
+          _logger.trace("charCode " + charCode + " sanitized: " + sanitizedChar + " at position " + position + ", that's " + Character.getNumericValue(sanitizedChar));
         }
         position++;
       } else {
-        if (_logger.isDebugEnabled()) {
-          _logger.debug("ignored: " + sanitizedChar);
+        if (_logger.isTraceEnabled()) {
+          _logger.trace("ignored character: " + sanitizedChar);
         }
       }
     }
     
     for(int i = 0; i < 6; i++) {
-      if (_logger.isDebugEnabled()) {
-        _logger.debug(sanitizedToken[i]);
-      }
       result += sanitizedToken[i];
       if(i<5)
         result *= 10;
