@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  	<head>
+    	<title>Password Pronunciation Plugin</title>
+    	<!-- Metadata -->
+    	<meta charset="utf-8" />
+    	<meta name="viewport" content="width=device-width, initial-scale=1" />
+    	<meta name="description" content="Tiny MFA Plugin Page" />
+    	<meta name="author" content="Mario Enrico Ragucci" />
+    	<!-- Libraries -->
+    	<script type="text/javascript" src="#{plugins.requestContextPath}/plugin/tiny-mfa-plugin/ui/js/lib/angular.min.js"></script>  
+    	<script type="text/javascript" src="#{plugins.requestContextPath}/plugin/tiny-mfa-plugin/ui/js/lib/angular-route.min.js"></script>
+      <script type="text/javascript" src="#{plugins.requestContextPath}/plugin/tiny-mfa-plugin/ui/js/lib/kjua.min.js"></script>
+    	<link rel="stylesheet" type="text/css" href="#{plugins.requestContextPath}/plugin/tiny-mfa-plugin/ui/css/app.css"></link>
+	</head>
+
+	<body>
+		<div class="container-fluid" data-ng-app="tinyMfaPluginApp">
+		  <div class="row content">
+		    <div class="col-sm-9">
+		      <div data-ng-view=""></div>		
+		    	<script src="#{plugins.requestContextPath}/plugin/tiny-mfa-plugin/ui/js/app.js"></script>
+		    	<script src="#{plugins.requestContextPath}/plugin/tiny-mfa-plugin/ui/js/controllers.js"></script>
+		    </div>
+		  </div>
+		</div>
+	</body>
+</html>
