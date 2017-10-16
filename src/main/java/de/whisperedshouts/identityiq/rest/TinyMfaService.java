@@ -47,7 +47,7 @@ public class TinyMfaService extends BasePluginResource {
   public static final int FINAL_SECRET_SIZE = 16;
   
   //a format string for the qr code
-  final static String QR_CODE_FORMATSTRING = "otpauth://totp/%s:%s@%s?algorithm=SHA1&digits=6&issuer=%s&period=30&secret=%s";
+  public static final String QR_CODE_FORMATSTRING = "otpauth://totp/%1$s:%2$s@%1$s?algorithm=SHA1&digits=6&issuer=%1$s&period=30&secret=%3$s";
   
   //the SQL query used to retrieve the userkey from the database
   public static final String SQL_RETRIEVE_PASSWORD_QUERY = "SELECT USERPASSWORD FROM MFA_ACCOUNTS WHERE ACCOUNT_NAME=?";
@@ -110,7 +110,7 @@ public class TinyMfaService extends BasePluginResource {
       _logger.error(e.getMessage());
     }
         
-    String qrCodeUrl = String.format(QR_CODE_FORMATSTRING, issuer, identityName, issuer, issuer, userPassword);
+    String qrCodeUrl = String.format(QR_CODE_FORMATSTRING, issuer, identityName, userPassword);
 
     if (_logger.isDebugEnabled()) {
       _logger.debug(String.format("LEAVING method %s (returns: %s)", "getQrCodeData", qrCodeUrl));
@@ -130,7 +130,7 @@ public class TinyMfaService extends BasePluginResource {
   public Boolean validateToken(@PathParam("identityName") String identityName, @PathParam("token") String token) {
     if (_logger.isDebugEnabled()) {
       _logger.debug(
-          String.format("ENTERING method %s(identityName %s, token %s)", "authenticateToken", identityName, token));
+          String.format("ENTERING method %s(identityName %s, token %s)", "validateToken", identityName, token));
     }
 
     //get the current timestamp to generate the token
@@ -151,7 +151,7 @@ public class TinyMfaService extends BasePluginResource {
     }
 
     if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "authenticateToken", isAuthenticated));
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "validateToken", isAuthenticated));
     }
     return isAuthenticated;
   }
