@@ -263,23 +263,30 @@ public class TinyMfaService extends BasePluginResource {
       // generate the rfc2104hmac String out of timestamp and key
       byte[] rfc2104hmac = TinyMfaService.calculateRFC2104HMAC(messageBytes, keyBytes);
       
+      //get the decimal representation of the last byte
+      //this will be used as a offset. i.E if the last byte was 4, we will derive the 
+      //dynamic trunacted result, starting at the 4th index of the byte array
       int offset = rfc2104hmac[20 - 1] & 0xF;
       if (_logger.isTraceEnabled()) {
         _logger.trace(String.format("using offset %d for dynamic truncation", (int) offset));
       }
-      // We're using a long because Java hasn't got unsigned int.
-      long truncatedHash = 0;
+      //probably int is too small (since there is no unsigned integer)
+      //therefore, a long variable is used
+      long dynamicTruncatedResult = 0;
       for (int i = 0; i < DYNAMIC_TRUNCATION_WIDTH; ++i) {
-        // shift 8bit to the left - we are going to read in 2 characters with 4 bytes each
-        truncatedHash <<= 8;
-        // perform a bitwise inclusive OR on the next offset
-        truncatedHash |= (rfc2104hmac[offset + i] & 0xFF);
+        //shift 8bit to the left to make room for the next byte
+        dynamicTruncatedResult <<= 8;
+        //perform a bitwise inclusive OR on the next offset
+        //this adds the next digit to the dynamic truncated result
+        dynamicTruncatedResult |= (rfc2104hmac[offset + i] & 0xFF);
       }
 
-      truncatedHash &= 0x7FFFFFFF;
-      truncatedHash %= 1000000;
+      //setting the most significant bit to 0
+      dynamicTruncatedResult &= 0x7FFFFFFF;
+      //making sure we get the right amount of numbers
+      dynamicTruncatedResult %= 1000000;
       
-      token = (int)truncatedHash;
+      token = (int)dynamicTruncatedResult;
 
     } catch (InvalidKeyException | SignatureException | NoSuchAlgorithmException e) {
       _logger.error(e.getMessage(), e);

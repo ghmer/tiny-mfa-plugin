@@ -3,7 +3,7 @@
 <Plugin name="tiny-mfa-plugin" displayName="Tiny MFA Plugin" version="1.1" disabled="false" certificationLevel="None" minSystemVersion="7.1" maxSystemVersion="7.2">
   <Attributes>
     <Map>     
-      <entry key="minUpgradableVersion" value="0.1"/>     
+      <entry key="minUpgradableVersion" value="1.0"/>     
       <entry key="settings">
         <value>
           <List>
@@ -19,7 +19,7 @@
       <entry key="snippets">
         <value>
           <List>
-            <Snippet regexPattern=".*">
+            <Snippet regexPattern=".*" rightRequired="TinyMfaPluginIcon">
               <Scripts>
                 <String>ui/js/buttonInject.js</String>
               </Scripts>
