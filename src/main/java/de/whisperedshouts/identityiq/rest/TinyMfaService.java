@@ -89,7 +89,7 @@ public class TinyMfaService extends BasePluginResource {
     boolean userExists = false;
     if(identityName != null) {
       try {
-        userExists = (returnCountForIdentityName(identityName) == 1);
+        userExists = returnCountForIdentityName(identityName);
       } catch (GeneralException | SQLException e) {
         _logger.error(e.getMessage());
       }
@@ -422,11 +422,13 @@ public class TinyMfaService extends BasePluginResource {
    * @throws GeneralException
    * @throws SQLException
    */
-  private int returnCountForIdentityName(String identityName) throws GeneralException, SQLException {
+  private boolean returnCountForIdentityName(String identityName) throws GeneralException, SQLException {
     if (_logger.isDebugEnabled()) {
       _logger.debug(String.format("ENTERING method %s(identityName %s)", "returnCountForIdentityName", identityName));
     }
-    int result = 0;
+    
+    boolean result = false;
+    int count = 0;
     Connection connection = getConnection();
     PreparedStatement prepStatement = connection.prepareStatement(TinyMfaService.SQL_COUNT_ACCOUNT_NAME_QUERY);
 
@@ -434,12 +436,16 @@ public class TinyMfaService extends BasePluginResource {
 
     ResultSet rs = prepStatement.executeQuery();
     if (rs.next()) {
-      result = rs.getInt(1);
+      count = rs.getInt(1);
     }
 
     rs.close();
     prepStatement.close();
     connection.close();
+    
+    if(count != 0) {
+      result = true;
+    }
 
     if (_logger.isDebugEnabled()) {
       _logger.debug(String.format("LEAVING method %s (returns: %s)", "returnCountForIdentityName", result));
