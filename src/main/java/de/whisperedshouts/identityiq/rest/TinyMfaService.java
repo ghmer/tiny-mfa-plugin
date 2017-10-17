@@ -78,6 +78,8 @@ public class TinyMfaService extends BasePluginResource {
       _logger.debug(
           String.format("ENTERING method %s()", "getQrCodeData"));
     }
+    boolean hasError = false;
+    String qrCodeUrl = null;
     String issuer = PluginBaseHelper.getSettingString(getPluginName(), "issuerDomain");
     String identityName = null;
     try {
@@ -92,6 +94,7 @@ public class TinyMfaService extends BasePluginResource {
         userExists = returnCountForIdentityName(identityName);
       } catch (GeneralException | SQLException e) {
         _logger.error(e.getMessage());
+        hasError = true;
       }
     }
     
@@ -101,6 +104,7 @@ public class TinyMfaService extends BasePluginResource {
         createAccount(identityName);
       } catch (Exception e) {
         _logger.error(e.getMessage());
+        hasError = true;
       } 
     } 
     
@@ -108,14 +112,22 @@ public class TinyMfaService extends BasePluginResource {
       userPassword = returnPasswordFromDB(identityName);
     } catch (GeneralException | SQLException e) {
       _logger.error(e.getMessage());
+      hasError = true;
     }
-        
-    String qrCodeUrl = String.format(QR_CODE_FORMATSTRING, issuer, identityName, userPassword);
+    
+    if(userPassword == null || userPassword.isEmpty()) {
+      hasError = true;
+    }
+    
+    if(!hasError) {
+      qrCodeUrl = String.format(QR_CODE_FORMATSTRING, issuer, identityName, userPassword);
+    }
+    
 
     if (_logger.isDebugEnabled()) {
       _logger.debug(String.format("LEAVING method %s (returns: %s)", "getQrCodeData", qrCodeUrl));
     }
-    return Response.ok().entity(qrCodeUrl).build();
+    return (hasError) ? Response.serverError().build() : Response.ok().entity(qrCodeUrl).build();
   }
 
   /**
@@ -137,7 +149,7 @@ public class TinyMfaService extends BasePluginResource {
     long currentUnixTime    = getValidUnixTimeStamp();
     int generatedToken      = 0;
     //sanitize the token (just to be sure)
-    int sanitizedToken      = TinyMfaService.sanitizeToken(token);
+    int sanitizedToken      = TinyMfaService.sanitizeToken(token, 6);
     Boolean isAuthenticated = false;
     try {
       String userPassword = returnPasswordFromDB(identityName);
@@ -224,15 +236,13 @@ public class TinyMfaService extends BasePluginResource {
     byte[] buffer = new byte[128];
 
     // Filling the buffer with random numbers.
-    // Notice: you want to reuse the same random generator
-    // while generating larger random number sequences.
     new Random().nextBytes(buffer);
 
     // Getting the key and converting it to Base32
-    Base32 codec = new Base32();
-    byte[] secretKey = Arrays.copyOf(buffer, TinyMfaService.FINAL_SECRET_SIZE);
-    byte[] bEncodedKey = codec.encode(secretKey);
-    String encodedKey = new String(bEncodedKey);
+    Base32 codec        = new Base32();
+    byte[] secretKey    = Arrays.copyOf(buffer, TinyMfaService.FINAL_SECRET_SIZE);
+    byte[] bEncodedKey  = codec.encode(secretKey);
+    String encodedKey   = new String(bEncodedKey);
 
     if (_logger.isDebugEnabled()) {
       _logger.debug(String.format("LEAVING method %s (returns: %s)", "generateBase32EncodedSecretKey", encodedKey));
@@ -309,8 +319,8 @@ public class TinyMfaService extends BasePluginResource {
           String.format("ENTERING method %s()", "getValidUnixTimeStamp"));
     }
     long systemTime = System.currentTimeMillis();
-    long unixTime = systemTime - (systemTime % 30);
-    unixTime = (long) Math.floor(unixTime / TimeUnit.SECONDS.toMillis(30));
+    long unixTime   = systemTime - (systemTime % 30);
+    unixTime        = (long) Math.floor(unixTime / TimeUnit.SECONDS.toMillis(30));
     
     if (_logger.isDebugEnabled()) {
       _logger.debug(String.format("LEAVING method %s (returns: %s)", "getValidUnixTimeStamp", unixTime));
@@ -355,58 +365,51 @@ public class TinyMfaService extends BasePluginResource {
    * Some minor sanitation efforts to make the string input more reliable
    * 
    * @param token the token to sanitize
+   * @param desiredLength the desired length of the sanitized string
    * @return a sanitizes token
    */
-  private static int sanitizeToken(String token) {
+  private static int sanitizeToken(String token, int desiredLength) {
     if (_logger.isDebugEnabled()) {
       _logger.debug(
-          String.format("ENTERING method %s(token %s)", "sanitizeToken", token));
-    }
-    int result = 0;
-    //the default
-    int position = 0;
-    token = token.trim();
-    int[] sanitizedToken = new int[6];
-    for(char c : token.toCharArray()) {
-      if(position >= sanitizedToken.length) {
-        break;
-      }
-      int charCode = (int) c;
-      int sanitizedChar = 0;
-      
-      switch(charCode) {
-        case 32:  break; //space
-        case 33:  sanitizedChar = 49; break; //exclamation mark to 1
-        case 66:  sanitizedChar = 56; break; //capital B to 8
-        case 71:  sanitizedChar = 54; break; //capital G to 6
-        case 73:  sanitizedChar = 49; break; //capital I to 1
-        case 79:  sanitizedChar = 48; break; //capital O to 0
-        case 98:  sanitizedChar = 56; break; //smaller b to 8      
-        case 103: sanitizedChar = 57; break; //smaller g to 9
-        case 105: sanitizedChar = 49; break; //smaller i to 1
-        case 111: sanitizedChar = 48; break; //smaller o to 0
-        
-        default: sanitizedChar = charCode; break;
-      }
-      
-      if(sanitizedChar >= 48 && 57 >= sanitizedChar) {
-        sanitizedToken[position] = Character.getNumericValue(sanitizedChar);
-        
-        if (_logger.isTraceEnabled()) {
-          _logger.trace("charCode " + charCode + " sanitized: " + sanitizedChar + " at position " + position + ", that's " + Character.getNumericValue(sanitizedChar));
-        }
-        position++;
-      } else {
-        if (_logger.isTraceEnabled()) {
-          _logger.trace("ignored character: " + sanitizedChar);
-        }
-      }
+          String.format("ENTERING method %s(token %s, desiredLength %s)", "sanitizeToken", token, desiredLength));
     }
     
-    for(int i = 0; i < 6; i++) {
-      result += sanitizedToken[i];
-      if(i<5)
-        result *= 10;
+    //return variable
+    int result   = 0;
+    //current position result variable
+    int position = 0;
+    
+    //iterate over string characters
+    for(int i = 0; i < token.length(); i++) {
+      if(position >= desiredLength) {
+        break;
+      }
+      //cast to byte
+      byte b = (byte) token.charAt(i);
+      switch(b) {
+        case 32:  break; //space
+        case 33:  b = 49; break; //exclamation mark to 1
+        case 66:  b = 56; break; //capital B to 8
+        case 71:  b = 54; break; //capital G to 6
+        case 73:  b = 49; break; //capital I to 1
+        case 79:  b = 48; break; //capital O to 0
+        case 98:  b = 56; break; //smaller b to 8      
+        case 103: b = 57; break; //smaller g to 9
+        case 105: b = 49; break; //smaller i to 1
+        case 111: b = 48; break; //smaller o to 0
+      }
+      
+      //check if character is in allowed range
+      if(b >= 48 && 57 >= b) {
+        //add decimal representation of the character to the result variable
+        result += b & 0xF;
+        //raise position
+        position++;
+        //as long as we have not met the desired length, shift value to left
+        if(position != desiredLength) {
+          result *= 10;
+        }
+      }
     }
     
     if (_logger.isDebugEnabled()) {
