@@ -29,6 +29,16 @@ import sailpoint.rest.plugin.AllowAll;
 import sailpoint.rest.plugin.BasePluginResource;
 import sailpoint.tools.GeneralException;
 
+/**
+ * This is a rest service used by the IdentityIQ TinyMFA plugin.
+ * Its purpose is
+ *  - To generate totp tokens for an identity
+ *  - To supply the identity with a proper otpauth url (to be used in QRCodes)
+ *  - To serve as a backend to verify tokens
+ * 
+ * @author Mario Ragucci
+ *
+ */
 @Path("tiny-mfa")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.TEXT_PLAIN)
@@ -78,16 +88,17 @@ public class TinyMfaService extends BasePluginResource {
       _logger.debug(
           String.format("ENTERING method %s()", "getQrCodeData"));
     }
-    boolean hasError = false;
-    String qrCodeUrl = null;
-    String issuer = PluginBaseHelper.getSettingString(getPluginName(), "issuerDomain");
+    boolean hasError    = false;
+    String qrCodeUrl    = null;
     String identityName = null;
+    String issuer       = PluginBaseHelper.getSettingString(getPluginName(), "issuerDomain");
     try {
       identityName = getLoggedInUserName();
     } catch (GeneralException e) {
       _logger.error(e.getMessage());
     }
     
+    //check if that user already used the plugin before
     boolean userExists = false;
     if(identityName != null) {
       try {
@@ -98,6 +109,7 @@ public class TinyMfaService extends BasePluginResource {
       }
     }
     
+    //create a new account if the identity did not use the plugin before
     String userPassword = null;
     if(!userExists) {
       try {
@@ -108,6 +120,7 @@ public class TinyMfaService extends BasePluginResource {
       } 
     } 
     
+    //retrieve the secretKey for this identity
     try {
       userPassword = returnPasswordFromDB(identityName);
     } catch (GeneralException | SQLException e) {
@@ -115,20 +128,22 @@ public class TinyMfaService extends BasePluginResource {
       hasError = true;
     }
     
+    //a bit more of error checking
     if(userPassword == null || userPassword.isEmpty()) {
       hasError = true;
     }
     
+    //no errors so far, continue with qrCodeUrl formatting
     if(!hasError) {
       //trim the password - IOS orders us to do so!
       userPassword = userPassword.substring(0, userPassword.indexOf("="));
       qrCodeUrl = String.format(QR_CODE_FORMATSTRING, issuer, identityName, userPassword);
     }
     
-
     if (_logger.isDebugEnabled()) {
       _logger.debug(String.format("LEAVING method %s (returns: %s)", "getQrCodeData", qrCodeUrl));
     }
+    //return either an error or the qrCodeUrl
     return (hasError) ? Response.serverError().build() : Response.ok().entity(qrCodeUrl).build();
   }
 
@@ -268,7 +283,7 @@ public class TinyMfaService extends BasePluginResource {
     byte[] messageBytes = null;
     //let's process
     try {
-      //the key is base32 encoded - that's a google thingy
+      //the key is base32 encoded
       keyBytes      = new Base32().decode(key);
       //get a reversed 8byte array
       messageBytes  = TinyMfaService.longToByteArray(message, 8, true);
@@ -276,7 +291,7 @@ public class TinyMfaService extends BasePluginResource {
       byte[] rfc2104hmac = TinyMfaService.calculateRFC2104HMAC(messageBytes, keyBytes);
       
       //get the decimal representation of the last byte
-      //this will be used as a offset. i.E if the last byte was 4, we will derive the 
+      //this will be used as a offset. i.E if the last byte was 4 (as decimal), we will derive the 
       //dynamic trunacted result, starting at the 4th index of the byte array
       int offset = rfc2104hmac[20 - 1] & 0xF;
       if (_logger.isTraceEnabled()) {
@@ -286,7 +301,7 @@ public class TinyMfaService extends BasePluginResource {
       //therefore, a long variable is used
       long dynamicTruncatedResult = 0;
       for (int i = 0; i < DYNAMIC_TRUNCATION_WIDTH; ++i) {
-        //shift 8bit to the left to make room for the next byte
+        //shift 8bit to the left to make room for the next two bytes
         dynamicTruncatedResult <<= 8;
         //perform a bitwise inclusive OR on the next offset
         //this adds the next digit to the dynamic truncated result
@@ -335,28 +350,29 @@ public class TinyMfaService extends BasePluginResource {
    * well as whether the array shall be in reversed order
    * 
    * @param message the long to convert to a byteArray
-   * @param arrayLength the length of the new array
+   * @param arraySize the size of the new array
    * @param reversed whether the array shall be reversed
    * @return the byteArray according to specification
    */
-  private static byte[] longToByteArray(long message, int arrayLength, boolean reversed) { 
+  private static byte[] longToByteArray(long message, int arraySize, boolean reversed) { 
     if (_logger.isDebugEnabled()) {
       _logger.debug(
-          String.format("ENTERING method %s(message %s, arrayLength %s, reversed %s)", "authenticateToken", message, arrayLength, reversed));
+          String.format("ENTERING method %s(message %s, arraySize %s, reversed %s)", "authenticateToken", message, arraySize, reversed));
     }
+
     //define the array
-    byte[] data = new byte[arrayLength];
+    byte[] data = new byte[arraySize];
     long value = message;
     if(reversed) {
-      for (int i = arrayLength; i-- > 0; value >>>= arrayLength) {
+      for (int i = arraySize; i-- > 0; value >>>= 8) {
         data[i] = (byte) value;
       }
     } else {
-      for (int i = 0; i-- > arrayLength; value >>>= 0) {
+      for (int i = 0; i < (arraySize - 1); value >>>= 8) {
         data[i] = (byte) value;
+        i++;
       }
     }
-     
     if (_logger.isDebugEnabled()) {
       _logger.debug(String.format("LEAVING method %s (returns: %s)", "generateValidToken", data));
     }
