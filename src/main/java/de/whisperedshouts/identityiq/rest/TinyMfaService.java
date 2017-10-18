@@ -120,6 +120,8 @@ public class TinyMfaService extends BasePluginResource {
     }
     
     if(!hasError) {
+      //trim the password - IOS orders us to do so!
+      userPassword = userPassword.substring(0, userPassword.indexOf("="));
       qrCodeUrl = String.format(QR_CODE_FORMATSTRING, issuer, identityName, userPassword);
     }
     
