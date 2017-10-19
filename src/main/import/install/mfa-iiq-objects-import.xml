@@ -182,4 +182,22 @@ return response;
     <Step icon="Stop" name="End" posX="394" posY="12" />
   </Workflow>
 
+  <Configuration name="MFAConfiguration">
+    <Attributes>
+      <Map>
+        <entry key="MFAConfigs">
+          <value>
+            <List>
+              <MFAConfig>
+                <MFAWorkflow>
+                  <Reference class="sailpoint.object.Workflow" name="MFA TinyMFA"/>
+                </MFAWorkflow>
+              </MFAConfig>
+            </List>
+          </value>
+        </entry>
+      </Map>
+    </Attributes>
+  </Configuration>
+  
 </sailpoint>
