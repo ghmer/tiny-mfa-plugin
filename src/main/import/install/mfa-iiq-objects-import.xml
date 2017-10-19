@@ -10,8 +10,7 @@
   </SPRight>
 
   <Capability name="TinyMFAActivatedIdentity" displayName="TinyMFA Activated Identity">
-    <Description>The capability to assign the TinyMFA authentication to
-      an Identity</Description>
+    <Description>The capability to assign the TinyMFA authentication to an Identity</Description>
     <RightRefs>
       <Reference class="sailpoint.object.SPRight" name="TinyMfaPluginIcon" />
       <Reference class="sailpoint.object.SPRight" name="TinyMfaPluginActivatedIdentity" />
@@ -41,8 +40,7 @@
     <Attributes>
       <Map>
         <entry key="pageTitle" value="TinyMFA Authentication Page" />
-        <entry key="subtitle"
-          value="Please provide the authentication token for your account" />
+        <entry key="subtitle"  value="Please provide the authentication token for your account" />
       </Map>
     </Attributes>
 
@@ -53,8 +51,7 @@
             <entry key="hidden">
               <value>
                 <Script>
-                  <Source>if (mfaResponseMessage == null) return true;
-                    else return false;</Source>
+                  <Source>if (mfaResponseMessage == null) return true; else return false;</Source>
                 </Script>
               </value>
             </entry>
@@ -64,34 +61,26 @@
     </Section>
 
     <Section>
-      <Field displayName="user_name" name="name" readOnly="true"
-        value="ref:identityName" />
-      <Field displayName="authentication token" name="token"
-        required="true" type="string" />
+      <Field displayName="user_name" name="name" readOnly="true" value="ref:identityName" />
+      <Field displayName="authentication token" name="token" required="true" type="string" />
     </Section>
     <Button label="button_submit" action="next" />
     <Button label="button_cancel" action="cancel" />
   </Form>
 
   <Workflow explicitTransitions="true"
-    handler="sailpoint.api.StandardWorkflowHandler" libraries="Identity,MFA"
-    name="MFA TinyMFA" type="MultiFactorAuthentication">
+    handler="sailpoint.api.StandardWorkflowHandler" libraries="Identity,MFA" name="MFA TinyMFA" type="MultiFactorAuthentication">
     <Variable initializer="false" name="trace">
-      <Description>Used for debugging this workflow and when set to true
-        trace will be sent to stdout.</Description>
+      <Description>Used for debugging this workflow and when set to true trace will be sent to stdout.</Description>
     </Variable>
     <Variable name="identityName">
-      <Description>The name of the identity to perform Multi-Factor
-        Authentication.</Description>
+      <Description>The name of the identity to perform Multi-Factor Authentication.</Description>
     </Variable>
     <Variable name="response">
       <Description>The response object (forged)</Description>
     </Variable>
-    <Step icon="Start" name="Start" posX="15" posY="12"
-      resultVariable="response">
-      <Description>
-        initializes the response object
-      </Description>
+    <Step icon="Start" name="Start" posX="15" posY="12" resultVariable="response">
+      <Description>initializes the response object</Description>
       <Script>
         <Source>
 <![CDATA[
@@ -114,18 +103,13 @@ return new HashMap();
         <Arg name="mfaResponseMessage"
           value="script:response.get(&quot;mfaResponseMessage&quot;)" />
       </Approval>
-      <Description>
-        Display the MFA form to collect information about the user.
-      </Description>
+      <Description>Display the MFA form to collect information about the user.</Description>
       <Transition to="AttemptLogin" />
     </Step>
-    <Step icon="Provision" name="AttemptLogin" posX="142" posY="147"
-      resultVariable="response">
+    <Step icon="Provision" name="AttemptLogin" posX="142" posY="147" resultVariable="response">
       <Arg name="identityName" value="ref:identityName" />
       <Arg name="token" value="ref:token" />
-      <Description>
-        Authenticate TinyMFA token.
-      </Description>
+      <Description>Authenticate TinyMFA token.</Description>
       <Script>
         <Source>
 <![CDATA[
@@ -170,13 +154,10 @@ return response;
       <Transition to="TinyMFA Token" when="!(response.get(&quot;result&quot;))" />
       <Transition to="DenyMessage" />
     </Step>
-    <Step action="call:addMessage" name="DenyMessage" posX="394"
-      posY="142">
+    <Step action="call:addMessage" name="DenyMessage" posX="394" posY="142">
       <Arg name="message" value="ui_mfa_error_denied" />
       <Arg name="type" value="Error" />
-      <Description>
-        Adds a deny message before completing the workflow
-      </Description>
+      <Description> Adds a deny message before completing the workflow </Description>
       <Transition to="End" />
     </Step>
     <Step icon="Stop" name="End" posX="394" posY="12" />
@@ -188,9 +169,12 @@ return response;
         <entry key="MFAConfigs">
           <value>
             <List>
-              <MFAConfig>
+              <MFAConfig enabled="true">
+                <MFAPopulations>
+                  <Reference class="sailpoint.object.DynamicScope" name="TinyMFA Authenticated" />
+                </MFAPopulations>
                 <MFAWorkflow>
-                  <Reference class="sailpoint.object.Workflow" name="MFA TinyMFA"/>
+                  <Reference class="sailpoint.object.Workflow" name="MFA TinyMFA" />
                 </MFAWorkflow>
               </MFAConfig>
             </List>
@@ -199,5 +183,5 @@ return response;
       </Map>
     </Attributes>
   </Configuration>
-  
+
 </sailpoint>
