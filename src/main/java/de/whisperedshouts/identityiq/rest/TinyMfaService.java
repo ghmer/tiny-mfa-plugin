@@ -65,9 +65,6 @@ public class TinyMfaService extends BasePluginResource {
   //insert a new account into the database. This happens on first usage of the plugin
   public static final String SQL_CREATE_NEW_ACCOUNT_QUERY = "INSERT INTO MFA_ACCOUNTS(ACCOUNT_NAME, USERPASSWORD) VALUES(?,?)";
 
-  //user exists query
-  public static final String SQL_COUNT_ACCOUNT_NAME_QUERY = "SELECT COUNT(USERPASSWORD) FROM MFA_ACCOUNTS WHERE ACCOUNT_NAME = ?";
-
   @Override
   public String getPluginName() {
     return "tiny-mfa-plugin";
@@ -98,40 +95,20 @@ public class TinyMfaService extends BasePluginResource {
       _logger.error(e.getMessage());
     }
     
-    //check if that user already used the plugin before
-    boolean userExists = false;
-    if(identityName != null) {
-      try {
-        userExists = returnCountForIdentityName(identityName);
-      } catch (GeneralException | SQLException e) {
-        _logger.error(e.getMessage());
-        hasError = true;
-      }
-    }
-    
-    //create a new account if the identity did not use the plugin before
     String userPassword = null;
-    if(!userExists) {
-      try {
-        createAccount(identityName);
-      } catch (Exception e) {
-        _logger.error(e.getMessage());
-        hasError = true;
-      } 
-    } 
-    
-    //retrieve the secretKey for this identity
     try {
       userPassword = returnPasswordFromDB(identityName);
-    } catch (GeneralException | SQLException e) {
+      if(userPassword == null || userPassword.isEmpty()) {
+        userPassword = createAccount(identityName);
+      }
+      
+      if(userPassword == null || userPassword.isEmpty()) {
+        userPassword = createAccount(identityName);
+      }
+    } catch (Exception e) {
       _logger.error(e.getMessage());
       hasError = true;
-    }
-    
-    //a bit more of error checking
-    if(userPassword == null || userPassword.isEmpty()) {
-      hasError = true;
-    }
+    } 
     
     //no errors so far, continue with qrCodeUrl formatting
     if(!hasError) {
@@ -163,7 +140,7 @@ public class TinyMfaService extends BasePluginResource {
     }
 
     //get the current timestamp to generate the token
-    long currentUnixTime    = getValidUnixTimeStamp();
+    long currentUnixTime    = getValidMessageBySystemTimestamp();
     int generatedToken      = 0;
     //sanitize the token (just to be sure)
     int sanitizedToken      = TinyMfaService.sanitizeToken(token, 6);
@@ -189,11 +166,11 @@ public class TinyMfaService extends BasePluginResource {
    * Creates an account on the database
    * 
    * @param identityName the account to create
-   * @return true whether the creation ended sucessfully
+   * @return the base32 encoded secretKey of the created account
    * @throws GeneralException
    * @throws SQLException
    */
-  private Boolean createAccount(String identityName) throws GeneralException, SQLException {
+  private String createAccount(String identityName) throws GeneralException, SQLException {
     if (_logger.isDebugEnabled()) {
       _logger.debug(String.format("ENTERING method %s(identityName %s)", "createAccount", identityName));
     }
@@ -201,7 +178,6 @@ public class TinyMfaService extends BasePluginResource {
     //generate a new secret key. User must not be bothered with this
     String generatedPassword = TinyMfaService.generateBase32EncodedSecretKey();
     
-    Boolean result = false;
     Connection connection = getConnection();
     PreparedStatement prepStatement = connection.prepareStatement(TinyMfaService.SQL_CREATE_NEW_ACCOUNT_QUERY);
 
@@ -210,16 +186,17 @@ public class TinyMfaService extends BasePluginResource {
 
     int resultCode = prepStatement.executeUpdate();
     if(resultCode != 0) {
-      result = true;
+    } else {
+      throw new GeneralException("User could not be created");
     }
 
     prepStatement.close();
     connection.close();
 
     if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "createAccount", result));
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "createAccount", generatedPassword));
     }
-    return result;
+    return generatedPassword;
   }
   
   /**
@@ -286,14 +263,14 @@ public class TinyMfaService extends BasePluginResource {
       //the key is base32 encoded
       keyBytes      = new Base32().decode(key);
       //get a reversed 8byte array
-      messageBytes  = TinyMfaService.longToByteArray(message, 8, true);
+      messageBytes  = TinyMfaService.longToByteArray(message, false);
       // generate the rfc2104hmac String out of timestamp and key
       byte[] rfc2104hmac = TinyMfaService.calculateRFC2104HMAC(messageBytes, keyBytes);
       
       //get the decimal representation of the last byte
       //this will be used as a offset. i.E if the last byte was 4 (as decimal), we will derive the 
       //dynamic trunacted result, starting at the 4th index of the byte array
-      int offset = rfc2104hmac[20 - 1] & 0xF;
+      int offset = rfc2104hmac[(rfc2104hmac.length - 1)] & 0xF;
       if (_logger.isTraceEnabled()) {
         _logger.trace(String.format("using offset %d for dynamic truncation", (int) offset));
       }
@@ -301,7 +278,7 @@ public class TinyMfaService extends BasePluginResource {
       //therefore, a long variable is used
       long dynamicTruncatedResult = 0;
       for (int i = 0; i < DYNAMIC_TRUNCATION_WIDTH; ++i) {
-        //shift 8bit to the left to make room for the next two bytes
+        //shift 8bit to the left to make room for the next byte
         dynamicTruncatedResult <<= 8;
         //perform a bitwise inclusive OR on the next offset
         //this adds the next digit to the dynamic truncated result
@@ -327,54 +304,56 @@ public class TinyMfaService extends BasePluginResource {
   }
   
   /**
-   * returns a "corrected" timestamp of the system.
-   * @return the timestamp
+   * returns a message based on a "corrected timestamp"
+   * This method will get the current system time (Milliseconds since 1970),
+   * then remove the seconds elapsed since the last half minute (i.E. 34 -> 30).
+   * Last, we divide this by 30.
+   * @return the message
    */
-  private static long getValidUnixTimeStamp() {
+  private static long getValidMessageBySystemTimestamp() {
     if (_logger.isDebugEnabled()) {
       _logger.debug(
-          String.format("ENTERING method %s()", "getValidUnixTimeStamp"));
+          String.format("ENTERING method %s()", "getValidMessageBySystemTimestamp"));
     }
     long systemTime = System.currentTimeMillis();
-    long unixTime   = systemTime - (systemTime % 30);
-    unixTime        = (long) Math.floor(unixTime / TimeUnit.SECONDS.toMillis(30));
+    long message    = systemTime - (systemTime % 30);
+    message         = (long) Math.floor(message / TimeUnit.SECONDS.toMillis(30));
     
     if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "getValidUnixTimeStamp", unixTime));
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "getValidMessageBySystemTimestamp", message));
     }
-    return unixTime;
+    return message;
   }
 
   /**
-   * converts a long to a byteArray. You can choose how big the byteArray shall be, as 
-   * well as whether the array shall be in reversed order
+   * converts a long to a byteArray. You can choose whether the array shall be in reversed order
    * 
    * @param message the long to convert to a byteArray
-   * @param arraySize the size of the new array
    * @param reversed whether the array shall be reversed
    * @return the byteArray according to specification
    */
-  private static byte[] longToByteArray(long message, int arraySize, boolean reversed) { 
+  private static byte[] longToByteArray(long message, boolean reversed) { 
     if (_logger.isDebugEnabled()) {
       _logger.debug(
-          String.format("ENTERING method %s(message %s, arraySize %s, reversed %s)", "authenticateToken", message, arraySize, reversed));
+          String.format("ENTERING method %s(message %s, reversed %s)", "longToByteArray", message, reversed));
     }
 
     //define the array
-    byte[] data = new byte[arraySize];
+    byte[] data = new byte[8];
     long value = message;
     if(reversed) {
-      for (int i = arraySize; i-- > 0; value >>>= 8) {
-        data[i] = (byte) value;
-      }
-    } else {
-      for (int i = 0; i < (arraySize - 1); value >>>= 8) {
+      for (int i = 0; i < 8; value >>>= 8) {
         data[i] = (byte) value;
         i++;
       }
+    } else {
+      for (int i = 8; i-- > 0; value >>>= 8) {
+        data[i] = (byte) value;
+      }
     }
+    
     if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "generateValidToken", data));
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "longToByteArray", data));
     }
     return data;
   }
@@ -437,44 +416,6 @@ public class TinyMfaService extends BasePluginResource {
   }
   
   /**
-   * returns the amount of entries found in the database for a given identityName
-   * @param identityName the name of the account to check
-   * @return the amount of entries found
-   * @throws GeneralException
-   * @throws SQLException
-   */
-  private boolean returnCountForIdentityName(String identityName) throws GeneralException, SQLException {
-    if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("ENTERING method %s(identityName %s)", "returnCountForIdentityName", identityName));
-    }
-    
-    boolean result = false;
-    int count = 0;
-    Connection connection = getConnection();
-    PreparedStatement prepStatement = connection.prepareStatement(TinyMfaService.SQL_COUNT_ACCOUNT_NAME_QUERY);
-
-    prepStatement.setString(1, identityName);
-
-    ResultSet rs = prepStatement.executeQuery();
-    if (rs.next()) {
-      count = rs.getInt(1);
-    }
-
-    rs.close();
-    prepStatement.close();
-    connection.close();
-    
-    if(count != 0) {
-      result = true;
-    }
-
-    if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "returnCountForIdentityName", result));
-    }
-    return result;
-  }
-  
-  /**
    * Returns the base32 encoded password of the account
    * @param identityName the name of the account to query for
    * @return the base32 encoded password
@@ -501,7 +442,7 @@ public class TinyMfaService extends BasePluginResource {
     connection.close();
 
     if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "returnSessionIndexFromDb", result));
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "returnPasswordFromDB", result));
     }
     return result;
   }
