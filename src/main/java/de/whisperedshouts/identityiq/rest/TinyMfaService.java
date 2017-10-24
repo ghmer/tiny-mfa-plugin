@@ -85,36 +85,43 @@ public class TinyMfaService extends BasePluginResource {
       _logger.debug(
           String.format("ENTERING method %s()", "getQrCodeData"));
     }
-    boolean hasError    = false;
-    String qrCodeUrl    = null;
-    String identityName = null;
-    String issuer       = PluginBaseHelper.getSettingString(getPluginName(), "issuerDomain");
+    boolean hasError     = false;
+    String qrCodeUrl     = null;
+    String identityName  = null;
+    String sanitizedName = null;
+    String issuer        = PluginBaseHelper.getSettingString(getPluginName(), "issuerDomain");
     try {
       identityName = getLoggedInUserName();
-    } catch (GeneralException e) {
-      _logger.error(e.getMessage());
-    }
-    
-    String userPassword = null;
-    try {
-      userPassword = returnPasswordFromDB(identityName);
-      if(userPassword == null || userPassword.isEmpty()) {
-        userPassword = createAccount(identityName);
-      }
-      
-      if(userPassword == null || userPassword.isEmpty()) {
-        userPassword = createAccount(identityName);
-      }
+      //sanitize the identityName;
+      sanitizedName = java.net.URLEncoder.encode(identityName, "UTF-8");
+      sanitizedName =  sanitizedName.replaceAll(" ", "%20");
     } catch (Exception e) {
       _logger.error(e.getMessage());
       hasError = true;
-    } 
+    }
     
     //no errors so far, continue with qrCodeUrl formatting
     if(!hasError) {
-      //trim the password - IOS orders us to do so!
-      userPassword = userPassword.substring(0, userPassword.indexOf("="));
-      qrCodeUrl = String.format(QR_CODE_FORMATSTRING, issuer, identityName, userPassword);
+      String userPassword = null;
+      try {
+        userPassword = returnPasswordFromDB(identityName);
+        if(userPassword == null || userPassword.isEmpty()) {
+          userPassword = createAccount(identityName);
+        }
+        
+        if(userPassword == null || userPassword.isEmpty()) {
+          userPassword = createAccount(identityName);
+        }
+        
+        //trim the password - IOS orders us to do so!
+        userPassword = userPassword.substring(0, userPassword.indexOf("="));
+        qrCodeUrl = String.format(QR_CODE_FORMATSTRING, issuer, sanitizedName, userPassword);
+        
+      } catch (Exception e) {
+        _logger.error(e.getMessage());
+        hasError = true;
+      } 
+      
     }
     
     if (_logger.isDebugEnabled()) {
