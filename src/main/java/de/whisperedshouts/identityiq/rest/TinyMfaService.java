@@ -64,6 +64,12 @@ public class TinyMfaService extends BasePluginResource {
   
   //insert a new account into the database. This happens on first usage of the plugin
   public static final String SQL_CREATE_NEW_ACCOUNT_QUERY = "INSERT INTO MFA_ACCOUNTS(ACCOUNT_NAME, USERPASSWORD) VALUES(?,?)";
+  
+  //insert a new validation attempt into the database
+  public static final String SQL_INSERT_VALIDATION_ATTEMPT = "INSERT INTO MFA_VALIDATION_ATTEMPTS(ACCESS_TIME,CTS,ACCOUNT_NAME,SUCCEEDED) VALUES(?,?,?,?)";
+  
+  //check for failed validation attempts
+  public static final String SQL_COUNT_VALIDATION_ATTEMPTS = "SELECT COUNT(*) FROM MFA_VALIDATION_ATTEMPTS WHERE CTS = ? and ACCOUNT_NAME = ? and SUCCEEDED = false";
 
   @Override
   public String getPluginName() {
@@ -145,24 +151,47 @@ public class TinyMfaService extends BasePluginResource {
       _logger.debug(
           String.format("ENTERING method %s(identityName %s, token %s)", "validateToken", identityName, token));
     }
-
+    
+    //that's what we care for
+    Boolean isAuthenticated = false;
+    
+    //get the maximum attempts from the plugin settings
+    int maximumAllowedValidationAttempts = PluginBaseHelper.getSettingInt(getPluginName(), "maxAttempts");
+    
     //get the current timestamp to generate the token
     long currentUnixTime    = getValidMessageBySystemTimestamp();
-    int generatedToken      = 0;
-    //sanitize the token (just to be sure)
-    int sanitizedToken      = TinyMfaService.sanitizeToken(token, 6);
-    Boolean isAuthenticated = false;
+    
+    //check for validation attempts, initialize with safety in mind
+    int attemptsForTimestamp = maximumAllowedValidationAttempts + 1;
     try {
-      String userPassword = returnPasswordFromDB(identityName);
-      generatedToken = TinyMfaService.generateValidToken(currentUnixTime, userPassword);
-      
-      //if codes match, you are welcome
-      isAuthenticated = (generatedToken == sanitizedToken);
-
-    } catch (GeneralException | SQLException e) {
-      _logger.error(e.getMessage());
+      attemptsForTimestamp = returnFailedValidationAttempts(identityName, currentUnixTime);
+    } catch (GeneralException e1) {
+      _logger.error(e1);
+    } catch (SQLException e1) {
+      _logger.error(e1);
     }
-
+    
+    if(attemptsForTimestamp < maximumAllowedValidationAttempts) {
+      int generatedToken      = 0;
+      //sanitize the token (just to be sure)
+      int sanitizedToken      = TinyMfaService.sanitizeToken(token, 6);
+      
+      try {
+        String userPassword = returnPasswordFromDB(identityName);
+        generatedToken = TinyMfaService.generateValidToken(currentUnixTime, userPassword);
+        
+        //if codes match, you are welcome
+        isAuthenticated = (generatedToken == sanitizedToken);
+        
+        //log the attempt
+        insertValidationAttemptToDb(identityName, currentUnixTime, isAuthenticated);
+      } catch (GeneralException | SQLException e) {
+        _logger.error(e.getMessage());
+      }
+    } else {
+      _logger.warn(String.format("number attempts (%s) exceeded limit %s for identity %s", attemptsForTimestamp, maximumAllowedValidationAttempts, identityName));
+    }
+    
     if (_logger.isDebugEnabled()) {
       _logger.debug(String.format("LEAVING method %s (returns: %s)", "validateToken", isAuthenticated));
     }
@@ -450,6 +479,80 @@ public class TinyMfaService extends BasePluginResource {
 
     if (_logger.isDebugEnabled()) {
       _logger.debug(String.format("LEAVING method %s (returns: %s)", "returnPasswordFromDB", result));
+    }
+    return result;
+  }
+  
+  /**
+   * Inserts a validation attempt to the database
+   * 
+   * @param identityName the name of the account to query for
+   * @param cts the corrected timestamp to query for
+   * @return
+   * @throws GeneralException
+   * @throws SQLException
+   */
+  private boolean insertValidationAttemptToDb(String identityName, long cts, boolean succeeded) throws GeneralException, SQLException {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("ENTERING method %s(identityName %s, cts %s, succeeded %s)", "insertValidationAttemptToDb", identityName, cts, succeeded));
+    }
+    
+    boolean wasCompleted = false;
+    
+    Connection connection = getConnection();
+    PreparedStatement prepStatement = connection.prepareStatement(TinyMfaService.SQL_INSERT_VALIDATION_ATTEMPT);
+
+    prepStatement.setDate(1, new java.sql.Date(new java.util.Date().getTime()));
+    prepStatement.setString(2, identityName);
+    prepStatement.setLong(3, cts);
+    prepStatement.setBoolean(4, succeeded);
+
+    int resultCode = prepStatement.executeUpdate();
+    if(resultCode != 0) {
+      wasCompleted = true;
+    } 
+    
+    prepStatement.close();
+    connection.close();
+
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "insertValidationAttemptToDb", wasCompleted));
+    }
+    return wasCompleted;
+  }
+  
+
+  /**
+   * Returns the number of failed validation attempts that have been made for the given identityName and corrected timestamp
+   * 
+   * @param identityName the name of the account to query for
+   * @param cts the corrected timestamp to query for
+   * @return the number of validation attempts for this identityName and cts
+   * @throws GeneralException
+   * @throws SQLException
+   */
+  private int returnFailedValidationAttempts(String identityName, long cts) throws GeneralException, SQLException {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("ENTERING method %s(identityName %s, cts %s)", "returnFailedValidationAttempts", identityName, cts));
+    }
+    int result = 0;
+    Connection connection = getConnection();
+    PreparedStatement prepStatement = connection.prepareStatement(TinyMfaService.SQL_COUNT_VALIDATION_ATTEMPTS);
+  
+    prepStatement.setString(1, identityName);
+    prepStatement.setLong(2, cts);
+  
+    ResultSet rs = prepStatement.executeQuery();
+    if (rs.next()) {
+      result = rs.getInt(1);
+    }
+  
+    rs.close();
+    prepStatement.close();
+    connection.close();
+  
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "returnFailedValidationAttempts", result));
     }
     return result;
   }
