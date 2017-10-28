@@ -1,9 +1,9 @@
-var url = SailPoint.CONTEXT_PATH + '/plugins/pluginPage.jsf?pn=tiny-mfa-plugin';
 jQuery(document).ready(function(){
-    jQuery("ul.navbar-right li:first")
+	var tinyMfaPluginUrl = SailPoint.CONTEXT_PATH + '/plugins/pluginPage.jsf?pn=tiny-mfa-plugin';
+	jQuery("ul.navbar-right li:first")
         .before(
             '<li class="dropdown">' +
-            '		<a href="' + url + '" tabindex="0" role="menuitem" title="Multifactor Authentication">' +
+            '		<a href="' + tinyMfaPluginUrl + '" tabindex="0" role="menuitem" title="Multifactor Authentication">' +
             '			<i role="presenation" class="fa fa-mobile fa-lg example"></i>' +
             '		</a>' +
             '</li>'
