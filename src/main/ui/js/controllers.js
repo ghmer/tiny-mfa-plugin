@@ -9,11 +9,10 @@
 	});
 	
 	/** QRCode Controller **/
-	app.controller('QRCodeController', function($scope, $http) {
+	app.controller('QRCodeController', ['$scope', '$http', '$timeout', function($scope, $http, $timeout) {
 		$scope.headline = 'Your QRCode';
 		$scope.qrCodeError   = null;
 		$scope.errorMessage  = null;
-		$scope.qrCodeSuccess = null;
 		
 		function populateQrCode($scope, $http) {
 			$http({
@@ -26,19 +25,25 @@
 		    	if(response.data.startsWith("<!DOCTYPE")) {
 		    		// we probably hit a csrf issue
 		    		$scope.errorMessage  = "There was an issue with generating the QRCode. Please proceed with cleaning your browsercookies and restarting the browser before trying again.";
-			        $scope.qrCodeSuccess = null;
 			        $scope.qrCodeError 	 = "Sorry, but the QRCode could not be created";
+			        $timeout(function() {
+			        	$scope.qrCodeError   = null;
+			    		$scope.errorMessage  = null;
+		            }, 3000);
 		    	} else {
 		    		//generate qrcode 
 		    		var qrCodeObject 	 = kjua({text: response.data});
 			        $scope.qrCode 		 = qrCodeObject.src;
 			        $scope.qrCodeError 	 = null;
-			        $scope.qrCodeSuccess = "success";
 		    	}
 		    }, function myError(response) {
 		    	$scope.errorMessage  = "There was an issue with generating the QRCode. Please proceed with cleaning your browsercookies and restarting the browser before trying again.";
-			    $scope.qrCodeSuccess = null;
 		        $scope.qrCodeError   = "Sorry, but the QRCode could not be created";
+		        
+		        $timeout(function() {
+		        	$scope.qrCodeError   = null;
+		    		$scope.errorMessage  = null;
+	            }, 3000);
 		    });
 		};
 		try {
@@ -46,13 +51,12 @@
 		}catch(error) {
 			$scope.errorMessage  = error.message;
 			$scope.qrCodeError   = "Sorry, but the QRCode could not be created";
-	        $scope.qrCodeSuccess = null;
 		}
 		
-	});
+	}]);
 	
 	/** ValidateController Controller **/
-	app.controller('ValidateController', function($scope, $http) {
+	app.controller('ValidateController', ['$scope', '$http', '$timeout', function($scope, $http, $timeout) {
 		$scope.headline = 'Validate Your QRCode';
 		$scope.validationError 	 = null;
 		$scope.validationSuccess = null;
@@ -69,18 +73,30 @@
 			    	if(response.data == "true") {
 			    		$scope.validationSuccess = "Token validation successful";
 				    	$scope.validationError   = null;
+				    	$timeout(function() {
+				    		$scope.validationSuccess = null;
+			            }, 3000);
 			    	} else {
 			    		$scope.validationError   = "Token validation failed - " + response.data;
 				    	$scope.validationSuccess = null;
+				    	$timeout(function() {
+				    		$scope.validationError 	 = null;
+			            }, 3000);
 			    	}
 			    	
 			    }, function myError(response) {
 			    	$scope.validationError   = "Token validation failed - " + response.data;
 			    	$scope.validationSuccess = null;
+			    	$timeout(function() {
+			    		$scope.validationError 	 = null;
+		            }, 3000);
 			    });
 			};
 		}catch(error) {
 			$scope.validationError = error.message;
+			$timeout(function() {
+	    		$scope.validationError 	 = null;
+            }, 3000);
 		}
-	});
+	}]);
 }());
