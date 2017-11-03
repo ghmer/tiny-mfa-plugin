@@ -7,7 +7,7 @@
 <hr />
 <h2>{{headline}}</h2>
 <p>This is the <i>Validation</i> page. On this page, you can try to validate your google-authenticator installation.<br/>
-to do this, just enter the token that is shown on your google-authenticator app in the textbox below and click on validate.
+to do this, just enter the token that is shown on your google-authenticator app in the textbox below and click on validate.</p>
 <div id="validateDiv">
   <div data-ng-show="validationError" class="alert alert-danger">
     <span data-ng-show="validationError" data-ng-cloak>{{validationError}}</span>
@@ -15,17 +15,16 @@ to do this, just enter the token that is shown on your google-authenticator app 
   <div data-ng-show="validationSuccess" class="alert alert-success">
     <span data-ng-show="validationSuccess" data-ng-cloak>{{validationSuccess}}</span>
   </div>
-  <form ng-submit="validateToken(tokenValue)">
+  <form data-ng-submit="validateToken(tokenValue)">
     <table id="validateTokenTable" class="table table-striped table-hover table-condensed">
       <tr>
         <th>Enter your token in the field below ...</th>
         <th>... then click on validate</th>
       </tr>
       <tr>
-        <th><input type="text" name="tokenValue" ng-model="tokenValue" class="form-control"/></th>
+        <th><input type="text" name="tokenValue" data-ng-model="tokenValue" class="form-control"/></th>
         <th><input type="submit" value="validate" class="btn btn-link btn-large btn-block"/></th>
       </tr>
      </table>
   </form>
 </div>
-</p>
