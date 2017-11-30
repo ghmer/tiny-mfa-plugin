@@ -115,10 +115,6 @@ public class TinyMfaService extends BasePluginResource {
           userPassword = createAccount(identityName);
         }
         
-        if(userPassword == null || userPassword.isEmpty()) {
-          userPassword = createAccount(identityName);
-        }
-        
         //trim the password - IOS orders us to do so!
         userPassword = userPassword.substring(0, userPassword.indexOf("="));
         qrCodeUrl = String.format(QR_CODE_FORMATSTRING, issuer, sanitizedName, userPassword);
@@ -298,7 +294,7 @@ public class TinyMfaService extends BasePluginResource {
     try {
       //the key is base32 encoded
       keyBytes      = new Base32().decode(key);
-      //get a reversed 8byte array
+      //get an 8byte array derived from the message
       messageBytes  = TinyMfaService.longToByteArray(message, false);
       // generate the rfc2104hmac String out of timestamp and key
       byte[] rfc2104hmac = TinyMfaService.calculateRFC2104HMAC(messageBytes, keyBytes);
