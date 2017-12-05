@@ -27,4 +27,9 @@
 
 		.otherwise({redirectTo: '/'});
 	});
+	
+	//this fixes the escaped slashes
+	app.config(['$locationProvider', function($locationProvider) {
+		  $locationProvider.hashPrefix('');
+	}]);
 }());
