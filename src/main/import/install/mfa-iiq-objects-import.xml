@@ -120,10 +120,10 @@ Map response = new HashMap();
 response.put("result", false);
 
 //derive proper classloader via plugins cache
-ClassLoader clsLoader = sailpoint.server.Environment.getEnvironment().getPluginsCache().getClassLoader("tiny-mfa-plugin");
+ClassLoader clsLoader = sailpoint.server.Environment.getEnvironment().getPluginsCache().getClassLoader("tiny_mfa_plugin");
 if(clsLoader != null) {
   try {
-    ClassLoader clsLoader = sailpoint.server.Environment.getEnvironment().getPluginsCache().getClassLoader("tiny-mfa-plugin");
+    ClassLoader clsLoader = sailpoint.server.Environment.getEnvironment().getPluginsCache().getClassLoader("tiny_mfa_plugin");
     System.out.println("setting parameters");
 
     //method has two parameters of type String

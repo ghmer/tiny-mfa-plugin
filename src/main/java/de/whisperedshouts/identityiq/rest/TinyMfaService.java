@@ -73,7 +73,7 @@ public class TinyMfaService extends BasePluginResource {
 
   @Override
   public String getPluginName() {
-    return "tiny-mfa-plugin";
+    return "tiny_mfa_plugin";
   }
   
   /**

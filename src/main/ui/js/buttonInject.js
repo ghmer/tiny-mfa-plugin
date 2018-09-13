@@ -1,5 +1,5 @@
 jQuery(document).ready(function(){
-	var tinyMfaPluginUrl = SailPoint.CONTEXT_PATH + '/plugins/pluginPage.jsf?pn=tiny-mfa-plugin';
+	var tinyMfaPluginUrl = SailPoint.CONTEXT_PATH + '/plugins/pluginPage.jsf?pn=tiny_mfa_plugin';
 	jQuery("ul.navbar-right li:first")
         .before(
             '<li class="dropdown">' +
