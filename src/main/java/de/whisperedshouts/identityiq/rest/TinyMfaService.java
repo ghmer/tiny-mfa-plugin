@@ -24,6 +24,9 @@ import javax.ws.rs.core.Response;
 import org.apache.commons.codec.binary.Base32;
 import org.apache.log4j.Logger;
 
+import sailpoint.api.SailPointContext;
+import sailpoint.object.Capability;
+import sailpoint.object.Identity;
 import sailpoint.plugin.PluginBaseHelper;
 import sailpoint.rest.plugin.AllowAll;
 import sailpoint.rest.plugin.BasePluginResource;
@@ -70,6 +73,9 @@ public class TinyMfaService extends BasePluginResource {
   
   //check for failed validation attempts
   public static final String SQL_COUNT_VALIDATION_ATTEMPTS = "SELECT COUNT(*) FROM MFA_VALIDATION_ATTEMPTS WHERE CTS = ? and ACCOUNT_NAME = ? and SUCCEEDED = false";
+  
+  // the capability to assign once a user shall be mfa activated
+  public static final String CAPABILITY_NAME = "TinyMFAActivatedIdentity";
 
   @Override
   public String getPluginName() {
@@ -190,6 +196,64 @@ public class TinyMfaService extends BasePluginResource {
     
     if (_logger.isDebugEnabled()) {
       _logger.debug(String.format("LEAVING method %s (returns: %s)", "validateToken", isAuthenticated));
+    }
+    return isAuthenticated;
+  }
+  
+  /**
+   * activates a token for an identity
+   * @param identityName the name of the account to activate
+   * @param token the token to use
+   * @return true whether the token could be validated
+   */
+  @GET
+  @Produces(MediaType.TEXT_PLAIN)
+  @Path("activateToken/{identityName}/{token}")
+  public Boolean activateToken(@PathParam("identityName") String identityName, @PathParam("token") String token) {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(
+          String.format("ENTERING method %s(identityName %s, token %s)", "activateToken", identityName, token));
+    }
+    
+    //that's what we care for
+    Boolean isAuthenticated = validateToken(identityName, token);
+    Identity identity       = null;
+    Capability capability   = null;
+    
+    if(isAuthenticated) {
+      SailPointContext context = getContext();
+      try {
+        identity = context.getObjectByName(Identity.class, identityName);
+      } catch (GeneralException e) {
+        _logger.error("Could not activate identity " + identityName + ": " + e.getMessage());
+        isAuthenticated = false;
+      }
+    }
+    
+    if(identity !=  null) {
+      SailPointContext context = getContext();
+      try {
+        capability = context.getObjectByName(Capability.class, CAPABILITY_NAME);
+      } catch (GeneralException e) {
+        _logger.error("Could not get capability " + CAPABILITY_NAME + ": " + e.getMessage());
+        isAuthenticated = false;
+      }
+    }
+    
+    if(identity != null && capability != null) {
+      SailPointContext context = getContext();
+      try {
+        identity.add(capability);
+        context.saveObject(identity);
+        context.commitTransaction();
+      } catch (GeneralException e) {
+        _logger.error("Could assign capability " + CAPABILITY_NAME + " to identity " + identityName + ": " + e.getMessage());
+        isAuthenticated = false;
+      }
+    }
+    
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "activateToken", isAuthenticated));
     }
     return isAuthenticated;
   }

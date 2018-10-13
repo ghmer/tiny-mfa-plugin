@@ -77,7 +77,7 @@
 				    		$scope.validationSuccess = null;
 			            }, 3000);
 			    	} else {
-			    		$scope.validationError   = "Token validation failed - " + response.data;
+			    		$scope.validationError   = "Token validation failed";
 				    	$scope.validationSuccess = null;
 				    	$timeout(function() {
 				    		$scope.validationError 	 = null;
@@ -85,7 +85,7 @@
 			    	}
 			    	
 			    }, function myError(response) {
-			    	$scope.validationError   = "Token validation failed - " + response.data;
+			    	$scope.validationError   = "Token validation failed";
 			    	$scope.validationSuccess = null;
 			    	$timeout(function() {
 			    		$scope.validationError 	 = null;
@@ -99,4 +99,49 @@
             }, 3000);
 		}
 	}]);
+	
+	/** ActivateController Controller **/
+    app.controller('ActivateController', ['$scope', '$http', '$timeout', function($scope, $http, $timeout) {
+        $scope.headline = 'Activate Your MFA Token';
+        $scope.activationError   = null;
+        $scope.activationSuccess = null;
+        
+        try {
+            $scope.activateToken = function(tokenValue){
+                $http({
+                    method  : "GET",
+                    withCredentials: true,
+                    xsrfHeaderName : "X-XSRF-TOKEN",
+                    xsrfCookieName : "CSRF-TOKEN",
+                    url : PluginHelper.getPluginRestUrl('tiny-mfa') + '/activateToken/' + PluginHelper.getCurrentUsername() + '/' + tokenValue
+                }).then(function mySuccess(response) {
+                    if(response.data == "true") {
+                        $scope.activationSuccess = "Token activation successful";
+                        $scope.activationError   = null;
+                        $timeout(function() {
+                            $scope.activationSuccess = null;
+                        }, 3000);
+                    } else {
+                        $scope.activationError   = "Token activation failed";
+                        $scope.activationSuccess = null;
+                        $timeout(function() {
+                            $scope.activationError   = null;
+                        }, 3000);
+                    }
+                    
+                }, function myError(response) {
+                    $scope.activationError   = "Token activation failed";
+                    $scope.activationSuccess = null;
+                    $timeout(function() {
+                        $scope.activationError   = null;
+                    }, 3000);
+                });
+            };
+        }catch(error) {
+            $scope.activationError = error.message;
+            $timeout(function() {
+                $scope.activationError   = null;
+            }, 3000);
+        }
+    }]);
 }());

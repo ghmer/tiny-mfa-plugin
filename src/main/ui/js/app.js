@@ -21,9 +21,14 @@
 		})
 		
 		.when('/validate', {
-			templateUrl : PluginHelper.getPluginFileUrl('tiny_mfa_plugin', 'ui/partials/validate.html'),
-			controller  : 'ValidateController'
-		})
+            templateUrl : PluginHelper.getPluginFileUrl('tiny_mfa_plugin', 'ui/partials/validate.html'),
+            controller  : 'ValidateController'
+        })
+        
+        .when('/activate', {
+            templateUrl : PluginHelper.getPluginFileUrl('tiny_mfa_plugin', 'ui/partials/activate.html'),
+            controller  : 'ActivateController'
+        })
 
 		.otherwise({redirectTo: '/'});
 	});
