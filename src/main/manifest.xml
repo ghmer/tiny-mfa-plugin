@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <!DOCTYPE Plugin PUBLIC "sailpoint.dtd" "sailpoint.dtd">
-<Plugin name="tiny_mfa_plugin" displayName="Tiny MFA Plugin" version="1.8" disabled="false" certificationLevel="None" minSystemVersion="7.1" maxSystemVersion="7.3">
+<Plugin name="tiny_mfa_plugin" displayName="Tiny MFA Plugin" version="1.9" disabled="false" certificationLevel="None" minSystemVersion="7.1" maxSystemVersion="8.0">
   <Attributes>
     <Map>     
       <entry key="minUpgradableVersion" value="1.5"/>     
