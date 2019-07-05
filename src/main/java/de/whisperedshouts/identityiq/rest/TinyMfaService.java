@@ -60,19 +60,25 @@ public class TinyMfaService extends BasePluginResource {
   public static final int FINAL_SECRET_SIZE = 16;
   
   //a format string for the qr code
-  public static final String QR_CODE_FORMATSTRING = "otpauth://totp/%1$s:%2$s@%1$s?algorithm=SHA1&digits=6&issuer=%1$s&period=30&secret=%3$s";
+  public static final String QR_CODE_FORMATSTRING          = "otpauth://totp/%1$s:%2$s@%1$s?algorithm=SHA1&digits=6&issuer=%1$s&period=30&secret=%3$s";
   
   //the SQL query used to retrieve the userkey from the database
-  public static final String SQL_RETRIEVE_PASSWORD_QUERY = "SELECT USERPASSWORD FROM MFA_ACCOUNTS WHERE ACCOUNT_NAME=?";
+  public static final String SQL_RETRIEVE_PASSWORD_QUERY   = "SELECT USERPASSWORD FROM MFA_ACCOUNTS WHERE ACCOUNT_NAME=?";
   
   //insert a new account into the database. This happens on first usage of the plugin
-  public static final String SQL_CREATE_NEW_ACCOUNT_QUERY = "INSERT INTO MFA_ACCOUNTS(ACCOUNT_NAME, USERPASSWORD) VALUES(?,?)";
+  public static final String SQL_CREATE_NEW_ACCOUNT_QUERY  = "INSERT INTO MFA_ACCOUNTS(ACCOUNT_NAME, USERPASSWORD, ISENCRYPTED) VALUES(?,?,?)";
   
   //insert a new validation attempt into the database
   public static final String SQL_INSERT_VALIDATION_ATTEMPT = "INSERT INTO MFA_VALIDATION_ATTEMPTS(ACCESS_TIME,CTS,ACCOUNT_NAME,SUCCEEDED) VALUES(?,?,?,?)";
   
   //check for failed validation attempts
-  public static final String SQL_COUNT_VALIDATION_ATTEMPTS = "SELECT COUNT(*) FROM MFA_VALIDATION_ATTEMPTS WHERE CTS = ? and ACCOUNT_NAME = ? and SUCCEEDED = false";
+  public static final String SQL_COUNT_VALIDATION_ATTEMPTS = "SELECT COUNT(*) FROM MFA_VALIDATION_ATTEMPTS WHERE CTS = ? and ACCOUNT_NAME = ? and SUCCEEDED = ?";
+  
+  //select unencrypted passwords from the database
+  public static final String SQL_SELECT_UNENCRYPTED_PWS    = "SELECT ACCOUNT_NAME, USERPASSWORD, ISENCRYPTED FROM MFA_ACCOUNTS WHERE ISENCRYPTED = ?";
+  
+  //update password
+  public static final String SQL_UPDATE_PASSWORD_FIELDS    = "UPDATE MFA_ACCOUNTS SET USERPASSWORD = ?, ISENCRYPTED = ? WHERE ACCOUNT_NAME = ?";
   
   // the capability to assign once a user shall be mfa activated
   public static final String CAPABILITY_NAME = "TinyMFAActivatedIdentity";
@@ -259,6 +265,79 @@ public class TinyMfaService extends BasePluginResource {
   }
   
   /**
+   * Encrypts unencrypted passwords on the database using the SailPoint encryption key
+   * @return
+   */
+  @GET
+  @Produces(MediaType.TEXT_PLAIN)
+  @Path("encryptPasswords")
+  public Response encryptPasswords() {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(
+          String.format("ENTERING method %s()", "encryptPasswords"));
+    }
+    int result       = 0;
+    boolean hasError = false;
+    
+    try {
+      Connection connection = getConnection();
+      PreparedStatement prepStatement = connection.prepareStatement(TinyMfaService.SQL_SELECT_UNENCRYPTED_PWS);
+      prepStatement.setBoolean(1, false);
+      ResultSet rs = prepStatement.executeQuery();
+      while(rs.next()) {
+        String accountName = rs.getString(1);
+        String password    = rs.getString(2);
+        encryptPassword(accountName, password);
+        result++;
+      }
+    } catch(Exception e) {
+      _logger.error(e.getMessage());
+      hasError = true;
+    }
+    
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "encryptPasswords", result));
+    }
+
+    return (hasError) ? Response.serverError().build() : Response.ok().entity(result).build();
+  }
+  
+  /**
+   * encrypts a password using the SailPoint encryption key
+   * @param accountName the accountName that identifies the dataentry to modify
+   * @param password the password to be stored as an encrypted value
+   * @throws Exception
+   */
+  private void encryptPassword(String accountName, String password) throws Exception {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("ENTERING method %s(accountName %s, password %s)", "encryptPassword", accountName, password));
+    }
+    
+    try {
+      SailPointContext context = getContext();
+      Connection connection    = getConnection();
+      PreparedStatement preparedStatement = connection.prepareStatement(TinyMfaService.SQL_UPDATE_PASSWORD_FIELDS);
+      String encryptedPassword = context.encrypt(password);
+      preparedStatement.setString(1, encryptedPassword);
+      preparedStatement.setString(2, "true");
+      preparedStatement.setString(3, accountName);
+      
+      int resultCode = preparedStatement.executeUpdate();
+      if(_logger.isDebugEnabled()) {
+        _logger.debug("Update result code: " + resultCode);
+      }
+    } catch(Exception e) {
+      _logger.error(e.getMessage());
+      throw new Exception(e);
+    }
+    
+    
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "encryptPassword", "void"));
+    }
+  }
+
+  /**
    * Creates an account on the database
    * 
    * @param identityName the account to create
@@ -272,13 +351,24 @@ public class TinyMfaService extends BasePluginResource {
     }
     
     //generate a new secret key. User must not be bothered with this
-    String generatedPassword = TinyMfaService.generateBase32EncodedSecretKey();
+    String generatedPassword = null;
+    if(shallEncryptPassword()) {
+      SailPointContext context = getContext();
+      generatedPassword = context.encrypt(TinyMfaService.generateBase32EncodedSecretKey());
+    } else {
+      generatedPassword = TinyMfaService.generateBase32EncodedSecretKey();
+    }
     
     Connection connection = getConnection();
     PreparedStatement prepStatement = connection.prepareStatement(TinyMfaService.SQL_CREATE_NEW_ACCOUNT_QUERY);
 
     prepStatement.setString(1, identityName);
     prepStatement.setString(2, generatedPassword);
+    if(shallEncryptPassword()) {
+      prepStatement.setString(3, "true");
+    } else {
+      prepStatement.setString(3, "false");
+    }
 
     int resultCode = prepStatement.executeUpdate();
     if(resultCode != 0) {
@@ -530,7 +620,12 @@ public class TinyMfaService extends BasePluginResource {
 
     ResultSet rs = prepStatement.executeQuery();
     if (rs.next()) {
-      result = rs.getString(1);
+      if(shallEncryptPassword()) {
+        SailPointContext context = getContext();
+        result = context.decrypt(rs.getString(1));
+      } else {
+        result = rs.getString(1);
+      }
     }
 
     rs.close();
@@ -601,6 +696,7 @@ public class TinyMfaService extends BasePluginResource {
   
     prepStatement.setString(1, identityName);
     prepStatement.setLong(2, cts);
+    prepStatement.setBoolean(3, false);
   
     ResultSet rs = prepStatement.executeQuery();
     if (rs.next()) {
@@ -615,5 +711,18 @@ public class TinyMfaService extends BasePluginResource {
       _logger.debug(String.format("LEAVING method %s (returns: %s)", "returnFailedValidationAttempts", result));
     }
     return result;
+  }
+  
+  private boolean shallEncryptPassword() {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("ENTERING method %s()", "shallEncryptPassword"));
+    }
+    boolean shallEncrypt = false;
+    shallEncrypt = PluginBaseHelper.getSettingBool(getPluginName(), "shallEncrypt");
+    
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "shallEncryptPassword", shallEncrypt));
+    }
+    return shallEncrypt;
   }
 }
