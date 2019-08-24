@@ -1,4 +1,4 @@
-<div id="tinyMfaValidatorDiv">
+<div id="tinyMfaValidator">
   <div data-ng-show="validationError" class="alert alert-danger">
     <span data-ng-show="validationError" data-ng-cloak>{{validationError}}</span>
   </div>
@@ -6,14 +6,14 @@
     <span data-ng-show="validationSuccess" data-ng-cloak>{{validationSuccess}}</span>
   </div>
   <form data-ng-submit="validateToken(tokenValue)">
-    <table id="validateTokenTable" class="table table-striped table-hover table-condensed">
+    <table id="validateTokenTable" class="table-striped table-hover table-condensed"witdh="400px">
       <tr>
-        <th>Enter your token in the field below ...</th>
-        <th>... then click on validate</th>
+        <th>Enter your 6 digit token below</th>
+        <th>&nbsp;</th>
       </tr>
       <tr>
-        <th><input type="text" name="tokenValue" data-ng-model="tokenValue" class="form-control"/></th>
-        <th><input type="submit" value="validate" class="btn btn-link btn-large btn-block"/></th>
+        <td><input type="text" pattern="^\d{6,6}$" ng-pattern-restrict name="tokenValue" data-ng-model="tokenValue" class="form-control" required/></td>
+        <td><input type="submit" value="validate" class="btn btn-link btn-large btn-block"/></td>
       </tr>
      </table>
   </form>

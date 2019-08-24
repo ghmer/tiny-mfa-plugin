@@ -115,6 +115,7 @@ return new HashMap();
 <![CDATA[
 import java.util.Map;
 import java.util.HashMap;
+import sailpoint.api.SailPointContext;
 
 Map response = new HashMap();
 response.put("result", false);
@@ -127,13 +128,14 @@ if(clsLoader != null) {
     System.out.println("setting parameters");
 
     //method has two parameters of type String
-    Class[] paramString = new Class[2];
+    Class[] paramString = new Class[3];
     paramString[0] = String.class;
     paramString[1] = String.class;
+    paramString[2] = SailPointContext.class;
 
     Class clObj = clsLoader.loadClass("de.whisperedshouts.identityiq.rest.TinyMfaService");
     java.lang.reflect.Method mToCall = clObj.getDeclaredMethod("validateToken", paramString);
-    boolean validateResult = mToCall.invoke(clObj.newInstance(), new Object[]{identityName, token});
+    boolean validateResult = mToCall.invoke(clObj.newInstance(), new Object[]{identityName, token, context});
     if(!validateResult) {
       response.put("mfaResponseMessage", "Token not correct");
     }
