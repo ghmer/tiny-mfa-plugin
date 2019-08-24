@@ -4,12 +4,37 @@
 	var app = angular.module('tinyMfaPluginApp');
 	
 	/** HOME Controller **/
+	app.controller('NavigateController', ['$scope', '$http', '$timeout', function($scope, $http, $timeout) {
+	    $scope.admin   = false;
+        $scope.isAdmin = function() {
+            $http({
+                method  : "GET",
+                withCredentials: true,
+                xsrfHeaderName : "X-XSRF-TOKEN",
+                xsrfCookieName : "CSRF-TOKEN",
+                url : PluginHelper.getPluginRestUrl('tiny-mfa') + '/accounts/isAdmin'
+            }).then(function mySuccess(response) {
+                $scope.admin = response.data;
+                
+            }, function myError(response) {
+                $scope.admin = false;
+            });
+        };
+        
+        try {
+            $scope.isAdmin();
+        }catch(error) {
+            alert(error);
+        }
+       
+    }]);
+	
 	app.controller('HomeController', ['$scope', '$http', '$timeout', function($scope, $http, $timeout) {
-		$scope.headline            = 'Welcome!';
-		$scope.iosAppstoreLink     = '';
-		$scope.androidAppstoreLink = '';
-		
-		function populateAppstoreLinks($scope, $http) {
+        $scope.headline            = 'Welcome!';
+        $scope.iosAppstoreLink     = '';
+        $scope.androidAppstoreLink = '';
+        
+        function populateAppstoreLinks($scope, $http) {
             $http({
                 method  : "GET",
                 withCredentials: true,
@@ -34,7 +59,7 @@
         }catch(error) {
             $scope.errorMessage  = error.message;
         }
-		
+        
     }]);
 	
 	/** QRCode Controller **/
@@ -49,7 +74,7 @@
 		        withCredentials: true,
 		        xsrfHeaderName : "X-XSRF-TOKEN",
 		        xsrfCookieName : "CSRF-TOKEN",
-		        url : PluginHelper.getPluginRestUrl('tiny-mfa') + '/generateQrCodeData'
+		        url : PluginHelper.getPluginRestUrl('tiny-mfa') + '/token/qrcode'
 		    }).then(function mySuccess(response) {
 		    	if(response.data.startsWith("<!DOCTYPE")) {
 		    		// we probably hit a csrf issue
@@ -97,7 +122,7 @@
 			        withCredentials: true,
 			        xsrfHeaderName : "X-XSRF-TOKEN",
 			        xsrfCookieName : "CSRF-TOKEN",
-			        url : PluginHelper.getPluginRestUrl('tiny-mfa') + '/validateToken/' + PluginHelper.getCurrentUsername() + '/' + tokenValue
+			        url : PluginHelper.getPluginRestUrl('tiny-mfa') + '/token/validate/' + PluginHelper.getCurrentUsername() + '/' + tokenValue
 			    }).then(function mySuccess(response) {
 			    	if(response.data == "true") {
 			    		$scope.validationSuccess = "Token validation successful";
@@ -142,7 +167,7 @@
                     withCredentials: true,
                     xsrfHeaderName : "X-XSRF-TOKEN",
                     xsrfCookieName : "CSRF-TOKEN",
-                    url : PluginHelper.getPluginRestUrl('tiny-mfa') + '/activateToken/' + PluginHelper.getCurrentUsername() + '/' + tokenValue
+                    url : PluginHelper.getPluginRestUrl('tiny-mfa') + '/token/activate/' + PluginHelper.getCurrentUsername() + '/' + tokenValue
                 }).then(function mySuccess(response) {
                     if(response.data == "true") {
                         $scope.activationSuccess = "Token activation successful";

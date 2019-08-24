@@ -5,6 +5,8 @@
 
     app.directive('tinyMfaNavigation', function() {
         return {
+            controller : 'NavigateController',
+            controllerAs : 'controller',
             restrict : 'E',
             scope : {
                 activelink : '@'

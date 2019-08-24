@@ -8,6 +8,9 @@
   <SPRight name="TinyMfaPluginActivatedIdentity" displayName="View TinyMFA Plugin Activated Identity">
     <Description>Activates an Identity for TinyMFA</Description>
   </SPRight>
+  <SPRight name="TinyMfaPluginAdministrator" displayName="View TinyMFA Plugin Administrator">
+    <Description>Administrative Rights for TinyMFA</Description>
+  </SPRight>
 
   <Capability name="TinyMFAActivatedIdentity" displayName="TinyMFA Activated Identity">
     <Description>The capability to assign the TinyMFA authentication to an Identity</Description>
@@ -21,6 +24,14 @@
     <Description>The capability to see the TinyMFA Plugin icon</Description>
     <RightRefs>
       <Reference class="sailpoint.object.SPRight" name="TinyMfaPluginIcon" />
+    </RightRefs>
+  </Capability>
+  
+  <Capability name="TinyMFAAdministrator" displayName="TinyMFA Administrator">
+    <Description>The capability to administrate the TinyMFA plugin</Description>
+    <RightRefs>
+      <Reference class="sailpoint.object.SPRight" name="TinyMfaPluginIcon" />
+      <Reference class="sailpoint.object.SPRight" name="TinyMfaPluginAdministrator" />
     </RightRefs>
   </Capability>
 
