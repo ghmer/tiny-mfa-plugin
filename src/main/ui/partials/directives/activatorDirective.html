@@ -1,0 +1,20 @@
+<div id="tinyMfaActivatorDiv">
+  <div data-ng-show="activationError" class="alert alert-danger">
+    <span data-ng-show="activationError" data-ng-cloak>{{activationError}}</span>
+  </div>
+  <div data-ng-show="activationSuccess" class="alert alert-success">
+    <span data-ng-show="activationSuccess" data-ng-cloak>{{activationSuccess}}</span>
+  </div>
+  <form data-ng-submit="activateToken(tokenValue)">
+    <table id="activateTokenTable" class="table table-striped table-hover table-condensed">
+      <tr>
+        <th>Enter your token in the field below ...</th>
+        <th>... then click on activate</th>
+      </tr>
+      <tr>
+        <th><input type="text" name="tokenValue" data-ng-model="tokenValue" class="form-control"/></th>
+        <th><input type="submit" value="activate" class="btn btn-link btn-large btn-block"/></th>
+      </tr>
+     </table>
+  </form>
+</div>

@@ -352,9 +352,11 @@ public class TinyMfaService extends BasePluginResource {
     
     //generate a new secret key. User must not be bothered with this
     String generatedPassword = null;
+    String encryptedPassword = null;
     if(shallEncryptPassword()) {
       SailPointContext context = getContext();
-      generatedPassword = context.encrypt(TinyMfaService.generateBase32EncodedSecretKey());
+      generatedPassword = TinyMfaService.generateBase32EncodedSecretKey();
+      encryptedPassword = context.encrypt(generatedPassword);
     } else {
       generatedPassword = TinyMfaService.generateBase32EncodedSecretKey();
     }
@@ -363,10 +365,11 @@ public class TinyMfaService extends BasePluginResource {
     PreparedStatement prepStatement = connection.prepareStatement(TinyMfaService.SQL_CREATE_NEW_ACCOUNT_QUERY);
 
     prepStatement.setString(1, identityName);
-    prepStatement.setString(2, generatedPassword);
     if(shallEncryptPassword()) {
+      prepStatement.setString(2, encryptedPassword);
       prepStatement.setString(3, "true");
     } else {
+      prepStatement.setString(2, generatedPassword);
       prepStatement.setString(3, "false");
     }
 

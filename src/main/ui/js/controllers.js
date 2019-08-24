@@ -57,7 +57,7 @@
 	
 	/** ValidateController Controller **/
 	app.controller('ValidateController', ['$scope', '$http', '$timeout', function($scope, $http, $timeout) {
-		$scope.headline = 'Validate Your QRCode';
+		$scope.headline = 'Validate Your Setup';
 		$scope.validationError 	 = null;
 		$scope.validationSuccess = null;
 		
@@ -102,7 +102,7 @@
 	
 	/** ActivateController Controller **/
     app.controller('ActivateController', ['$scope', '$http', '$timeout', function($scope, $http, $timeout) {
-        $scope.headline = 'Activate Your MFA Token';
+        $scope.headline = 'Activate Multifactor Authentication';
         $scope.activationError   = null;
         $scope.activationSuccess = null;
         

@@ -1,11 +1,5 @@
-<ul class="nav nav-pills">
-  <li role="presentation"><a href="#/home">Home</a></li>
-  <li role="presentation" class="active"><a href="#/qrcode">Your QRCode</a></li>
-  <li role="presentation"><a href="#/validate">Test your token</a></li>
-  <li role="presentation"><a href="#/activate">Activate your token</a></li>
-</ul>
+<tiny-mfa-navigation activelink="qrcode"></tiny-mfa-navigation>
 <h3><small>Multifactor-Authentication</small></h3>
-<hr />
 <h2>{{headline}}</h2>
 <p><i>Here is your QRCode!</i> scan this code with your google authenticator <a href="#/home">app</a>.<br/></p>
 <div data-ng-show="qrCodeError" class="alert alert-danger">
