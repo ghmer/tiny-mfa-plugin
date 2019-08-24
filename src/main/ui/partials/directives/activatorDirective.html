@@ -1,4 +1,4 @@
-<div id="tinyMfaActivatorDiv">
+<div id="tinyMfaActivator">
   <div data-ng-show="activationError" class="alert alert-danger">
     <span data-ng-show="activationError" data-ng-cloak>{{activationError}}</span>
   </div>
@@ -6,14 +6,14 @@
     <span data-ng-show="activationSuccess" data-ng-cloak>{{activationSuccess}}</span>
   </div>
   <form data-ng-submit="activateToken(tokenValue)">
-    <table id="activateTokenTable" class="table table-striped table-hover table-condensed">
+    <table id="activateTokenTable" class="table-striped table-hover table-condensed">
       <tr>
-        <th>Enter your token in the field below ...</th>
-        <th>... then click on activate</th>
+        <th>Enter your 6 digit token below</th>
+        <th>&nbsp;</th>
       </tr>
       <tr>
-        <th><input type="text" name="tokenValue" data-ng-model="tokenValue" class="form-control"/></th>
-        <th><input type="submit" value="activate" class="btn btn-link btn-large btn-block"/></th>
+        <td><input type="text" pattern="^\d{6,6}$" ng-pattern-restrict name="tokenValue" data-ng-model="tokenValue" class="form-control" required/></td>
+        <td><input type="submit" value="activate" class="btn btn-link btn-large btn-block"/></td>
       </tr>
      </table>
   </form>
