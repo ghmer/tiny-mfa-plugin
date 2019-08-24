@@ -9,6 +9,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -35,6 +36,7 @@ import sailpoint.object.Identity;
 import sailpoint.plugin.PluginBaseHelper;
 import sailpoint.rest.plugin.AllowAll;
 import sailpoint.rest.plugin.BasePluginResource;
+import sailpoint.rest.plugin.RequiredRight;
 import sailpoint.tools.GeneralException;
 
 /**
@@ -54,8 +56,11 @@ public class TinyMfaService extends BasePluginResource {
   // a logger object. Make use of it!
   public static final Logger _logger = Logger.getLogger(TinyMfaService.class);
 
-  // the capability to assign once a user shall be mfa activated
-  public static final String CAPABILITY_NAME = "TinyMFAActivatedIdentity";
+  //the capability to assign once a user shall be mfa activated
+   public static final String CAPABILITY_ACTIVATED_IDENTITY_NAME = "TinyMFAActivatedIdentity";
+   
+  //the administrative SPRight name
+  public static final String SPRIGHT_ADMINISTRATOR_NAME = "TinyMfaPluginAdministrator";
 
   // this is the default, static width used in the dynamic truncation
   public static final int DYNAMIC_TRUNCATION_WIDTH = 4;
@@ -337,7 +342,7 @@ public class TinyMfaService extends BasePluginResource {
    */
   @GET
   @Produces(MediaType.TEXT_PLAIN)
-  @Path("activateToken/{identityName}/{token}")
+  @Path("token/activate/{identityName}/{token}")
   public Boolean activateToken(@PathParam("identityName") String identityName, @PathParam("token") String token) {
     if (_logger.isDebugEnabled()) {
       _logger
@@ -362,9 +367,9 @@ public class TinyMfaService extends BasePluginResource {
     if (identity != null) {
       SailPointContext context = getContext();
       try {
-        capability = context.getObjectByName(Capability.class, CAPABILITY_NAME);
+        capability = context.getObjectByName(Capability.class, CAPABILITY_ACTIVATED_IDENTITY_NAME);
       } catch (GeneralException e) {
-        _logger.error("Could not get capability " + CAPABILITY_NAME + ": " + e.getMessage());
+        _logger.error("Could not get capability " + CAPABILITY_ACTIVATED_IDENTITY_NAME + ": " + e.getMessage());
         isAuthenticated = false;
       }
     }
@@ -377,7 +382,7 @@ public class TinyMfaService extends BasePluginResource {
         context.commitTransaction();
       } catch (GeneralException e) {
         _logger.error(
-            "Could assign capability " + CAPABILITY_NAME + " to identity " + identityName + ": " + e.getMessage());
+            "Could assign capability " + CAPABILITY_ACTIVATED_IDENTITY_NAME + " to identity " + identityName + ": " + e.getMessage());
         isAuthenticated = false;
       }
     }
@@ -436,6 +441,7 @@ public class TinyMfaService extends BasePluginResource {
    * @return a list of all matching accounts
    */
   @GET
+  @RequiredRight(value = "TinyMfaPluginAdministrator")
   @Produces(MediaType.APPLICATION_JSON)
   @Path("accounts/{identityName}")
   public Response getAccount(@PathParam("identityName") String identityName) {
@@ -486,6 +492,7 @@ public class TinyMfaService extends BasePluginResource {
    * @return a list of accounts
    */
   @GET
+  @RequiredRight(value = "TinyMfaPluginAdministrator")
   @Produces(MediaType.APPLICATION_JSON)
   @Path("accounts")
   public Response getAccounts() {
@@ -582,6 +589,7 @@ public class TinyMfaService extends BasePluginResource {
    * @return a list containing the validation attempts
    */
   @GET
+  @RequiredRight(value = "TinyMfaPluginAdministrator")
   @Produces(MediaType.APPLICATION_JSON)
   @Path("audit")
   public Response getAudit() {
@@ -623,15 +631,54 @@ public class TinyMfaService extends BasePluginResource {
 
     return Response.ok().entity(result).build();
   }
+  
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  @Path("accounts/isAdmin")
+  public Response isAdmin() {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("ENTERING method %s()", "isAdmin"));
+    }
+
+    boolean result = false;
+    try {
+      String username = getLoggedInUserName();
+      Collection<String> userRights = getLoggedInUserRights();
+      _logger.trace(userRights);
+      for(String userRight : userRights) {
+        _logger.trace("userRight: " + userRight);
+        if(userRight.equalsIgnoreCase(TinyMfaService.SPRIGHT_ADMINISTRATOR_NAME)) {
+          result = true;
+          break;
+        }
+      }
+      
+      if(username.equalsIgnoreCase("spadmin")) {
+        result = true;
+      }
+      
+    }catch(Exception e) {
+      _logger.error(e.getMessage());
+    }
+    
+    
+
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "isAdmin", result));
+    }
+
+    return Response.ok().entity(result).build();
+  }
 
   /**
    * returns the validation attempts, limits the result to the supplied number
    * 
    * @param limit
    *          the limit of validation attempts to show
-   * @return a lsit containing the validation attempts
+   * @return a list containing the validation attempts
    */
   @GET
+  @RequiredRight(value = "TinyMfaPluginAdministrator")
   @Produces(MediaType.APPLICATION_JSON)
   @Path("audit/{limit}")
   public Response getAuditWithLimit(@PathParam("limit") int limit) {
@@ -719,7 +766,7 @@ public class TinyMfaService extends BasePluginResource {
    */
   @GET
   @Produces(MediaType.TEXT_PLAIN)
-  @Path("generateQrCodeData")
+  @Path("token/qrcode")
   public Response getQrCodeData() {
     if (_logger.isDebugEnabled()) {
       _logger.debug(String.format("ENTERING method %s()", "getQrCodeData"));
@@ -779,7 +826,7 @@ public class TinyMfaService extends BasePluginResource {
    */
   @GET
   @Produces(MediaType.TEXT_PLAIN)
-  @Path("validateToken/{identityName}/{token}")
+  @Path("token/validate/{identityName}/{token}")
   public Boolean validateToken(@PathParam("identityName") String identityName, @PathParam("token") String token) {
     if (_logger.isDebugEnabled()) {
       _logger
