@@ -16,10 +16,15 @@
 	<includeBaseDirectory>false</includeBaseDirectory>
 	<fileSets>
 		<fileSet>
-			<directory>${basedir}/src/main/db</directory>
-			<outputDirectory>/db</outputDirectory>
-			<filtered>true</filtered>
-		</fileSet>
+      <directory>${basedir}/src/main/db</directory>
+      <outputDirectory>/db</outputDirectory>
+      <filtered>true</filtered>
+    </fileSet>
+    <fileSet>
+      <directory>${basedir}/src/main/messages</directory>
+      <outputDirectory>/messages</outputDirectory>
+      <filtered>true</filtered>
+    </fileSet>
 		<fileSet>
 			<directory>${basedir}/src/main/import</directory>
 			<outputDirectory>/import</outputDirectory>
