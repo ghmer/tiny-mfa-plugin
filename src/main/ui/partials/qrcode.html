@@ -1,15 +1,7 @@
 <tiny-mfa-navigation activelink="qrcode"></tiny-mfa-navigation>
 <h3><small>Multifactor-Authentication</small></h3>
 <h2>{{headline}}</h2>
-<p><i>Here is your QRCode!</i> scan this code with your google authenticator <a href="#/home">app</a>.<br/></p>
-<div data-ng-show="qrCodeError" class="alert alert-danger">
-    <span data-ng-show="qrCodeError" data-ng-cloak>{{qrCodeError}}</span>
-    <span>{{errorMessage}}</span>
-</div>
-<div data-ng-show="!qrCodeError" data-ng-cloak>
-    <div data-ng-show="!qrCodeError" id="qrCodeDiv" data-ng-cloak>
-      <img data-crossorigin="anonymous" src="{{qrCode}}" width="400" height="400" style="width: 300px; height: 300px"></img>
-      <br />
-      <p>Once the setup has been completed, you may <a href="#/validate">test it here</a></p>
-    </div>
-</div>
+<p><i>Here is your QRCode!</i> scan this code with your Multifactor Authentication app.</p>
+<p>Once the setup has been completed, you can <a href="#/validate">validate it here</a></p>
+<p>&nbsp;</p>
+<tiny-mfa-qrcode></tiny-mfa-qrcode>
