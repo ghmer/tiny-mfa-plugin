@@ -944,24 +944,17 @@ public class TinyMfaService extends BasePluginResource {
     // generate a new secret key. User must not be bothered with this
     String generatedPassword = null;
     String encryptedPassword = null;
-    if (shallEncryptPassword()) {
-      generatedPassword = TinyMfaService.generateBase32EncodedSecretKey();
-      encryptedPassword = context.encrypt(generatedPassword);
-    } else {
-      generatedPassword = TinyMfaService.generateBase32EncodedSecretKey();
-    }
+
+    generatedPassword = TinyMfaService.generateBase32EncodedSecretKey();
+    encryptedPassword = context.encrypt(generatedPassword);
+  
 
     Connection connection = getConnection();
     PreparedStatement prepStatement = connection.prepareStatement(TinyMfaService.SQL_CREATE_NEW_ACCOUNT_QUERY);
 
     prepStatement.setString(1, identityName);
-    if (shallEncryptPassword()) {
-      prepStatement.setString(2, encryptedPassword);
-      prepStatement.setString(3, "true");
-    } else {
-      prepStatement.setString(2, generatedPassword);
-      prepStatement.setString(3, "false");
-    }
+    prepStatement.setString(2, encryptedPassword);
+    prepStatement.setString(3, "true");  
     prepStatement.setString(4, "false");
 
     int resultCode = prepStatement.executeUpdate();
@@ -1163,12 +1156,8 @@ public class TinyMfaService extends BasePluginResource {
 
     ResultSet rs = prepStatement.executeQuery();
     if (rs.next()) {
-      if (shallEncryptPassword()) {
-        String encryptedPassword = rs.getString(1);
-        result = context.decrypt(encryptedPassword);
-      } else {
-        result = rs.getString(1);
-      }
+      String encryptedPassword = rs.getString(1);
+      result = context.decrypt(encryptedPassword);
     }
 
     rs.close();
@@ -1179,23 +1168,5 @@ public class TinyMfaService extends BasePluginResource {
       _logger.debug(String.format("LEAVING method %s (returns: %s)", "returnPasswordFromDB", result));
     }
     return result;
-  }
-
-  /**
-   * returns whether the plugin is configured to encrypt passwords
-   * 
-   * @return true when configured to encrypt passwords
-   */
-  private boolean shallEncryptPassword() {
-    if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("ENTERING method %s()", "shallEncryptPassword"));
-    }
-    boolean shallEncrypt = false;
-    shallEncrypt = PluginBaseHelper.getSettingBool(getPluginName(), "shallEncrypt");
-
-    if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "shallEncryptPassword", shallEncrypt));
-    }
-    return shallEncrypt;
   }
 }
