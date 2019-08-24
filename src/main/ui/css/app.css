@@ -13,3 +13,12 @@
 	padding-left: 250px;
 	padding-top: 50px;
 }
+
+ol, ol li {
+  list-style: decimal;
+}
+
+ul, ul li {
+  list-style: disc;
+  margin-left: 10px;
+}
