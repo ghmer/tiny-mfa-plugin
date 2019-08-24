@@ -8,6 +8,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -88,6 +90,29 @@ public class TinyMfaService extends BasePluginResource {
     return "tiny_mfa_plugin";
   }
   
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  @Path("getAppstoreLinks")
+  public Response getAppstoreLinks() {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(
+          String.format("ENTERING method %s()", "getAppstoreLinks"));
+    }
+    
+    String iosAppstoreLink     = PluginBaseHelper.getSettingString(getPluginName(), "mfaAppIos");
+    String androidAppstoreLink = PluginBaseHelper.getSettingString(getPluginName(), "mfaAppAndroid");
+    Map<String, String> result = new HashMap<>();
+    
+    result.put("iosAppstoreLink", iosAppstoreLink);
+    result.put("androidAppstoreLink", androidAppstoreLink);
+    
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "getAppstoreLinks", result));
+    }
+
+    return Response.ok().entity(result).build();
+  }
+  
   /**
    * generates the appropriate totp url that is transferred within the
    * QRCode. This can be used with google authenticator.
@@ -122,9 +147,10 @@ public class TinyMfaService extends BasePluginResource {
     if(!hasError) {
       String userPassword = null;
       try {
-        userPassword = returnPasswordFromDB(identityName);
+        SailPointContext context = getContext();
+        userPassword             = returnPasswordFromDB(identityName, context);
         if(userPassword == null || userPassword.isEmpty()) {
-          userPassword = createAccount(identityName);
+          userPassword = createAccount(identityName, context);
         }
         
         //trim the password - IOS orders us to do so!
@@ -185,7 +211,69 @@ public class TinyMfaService extends BasePluginResource {
       int sanitizedToken      = TinyMfaService.sanitizeToken(token, 6);
       
       try {
-        String userPassword = returnPasswordFromDB(identityName);
+        SailPointContext context = getContext();
+        String userPassword      = returnPasswordFromDB(identityName, context);
+        generatedToken           = TinyMfaService.generateValidToken(currentUnixTime, userPassword);
+        
+        //if codes match, you are welcome
+        isAuthenticated = (generatedToken == sanitizedToken);
+        
+        //log the attempt
+        insertValidationAttemptToDb(identityName, currentUnixTime, isAuthenticated);
+      } catch (GeneralException | SQLException e) {
+        _logger.error(e.getMessage());
+      }
+    } else {
+      _logger.warn(String.format("number attempts (%s) exceeded limit %s for identity %s", attemptsForTimestamp, maximumAllowedValidationAttempts, identityName));
+    }
+    
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "validateToken", isAuthenticated));
+    }
+    return isAuthenticated;
+  }
+  
+  
+  /**
+   * validates a token for an identity. This method is not exposed via REST. Instead, it needs an existing SailPointContext to work
+   * This method is used via reflection in the MFA workflow
+   * @param identityName the name of the account to check the token for
+   * @param token the token to check
+   * @param context a SailPointContext to use
+   * @return true whether the token could be validated
+   */
+  public Boolean validateToken(String identityName, String token, SailPointContext context) {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(
+          String.format("ENTERING method %s(identityName %s, token %s)", "validateToken", identityName, token));
+    }
+    
+    //that's what we care for
+    Boolean isAuthenticated = false;
+    
+    //get the maximum attempts from the plugin settings
+    int maximumAllowedValidationAttempts = PluginBaseHelper.getSettingInt(getPluginName(), "maxAttempts");
+    
+    //get the current timestamp to generate the token
+    long currentUnixTime    = getValidMessageBySystemTimestamp();
+    
+    //check for validation attempts, initialize with safety in mind
+    int attemptsForTimestamp = maximumAllowedValidationAttempts + 1;
+    try {
+      attemptsForTimestamp = returnFailedValidationAttempts(identityName, currentUnixTime);
+    } catch (GeneralException e1) {
+      _logger.error(e1);
+    } catch (SQLException e1) {
+      _logger.error(e1);
+    }
+    
+    if(attemptsForTimestamp < maximumAllowedValidationAttempts) {
+      int generatedToken      = 0;
+      //sanitize the token (just to be sure)
+      int sanitizedToken      = TinyMfaService.sanitizeToken(token, 6);
+      
+      try {
+        String userPassword = returnPasswordFromDB(identityName, context);
         generatedToken = TinyMfaService.generateValidToken(currentUnixTime, userPassword);
         
         //if codes match, you are welcome
@@ -341,11 +429,12 @@ public class TinyMfaService extends BasePluginResource {
    * Creates an account on the database
    * 
    * @param identityName the account to create
+   * @param context a SailPointContext to use
    * @return the base32 encoded secretKey of the created account
    * @throws GeneralException
    * @throws SQLException
    */
-  private String createAccount(String identityName) throws GeneralException, SQLException {
+  private String createAccount(String identityName, SailPointContext context) throws GeneralException, SQLException {
     if (_logger.isDebugEnabled()) {
       _logger.debug(String.format("ENTERING method %s(identityName %s)", "createAccount", identityName));
     }
@@ -354,7 +443,6 @@ public class TinyMfaService extends BasePluginResource {
     String generatedPassword = null;
     String encryptedPassword = null;
     if(shallEncryptPassword()) {
-      SailPointContext context = getContext();
       generatedPassword = TinyMfaService.generateBase32EncodedSecretKey();
       encryptedPassword = context.encrypt(generatedPassword);
     } else {
@@ -605,13 +693,14 @@ public class TinyMfaService extends BasePluginResource {
   }
   
   /**
-   * Returns the base32 encoded password of the account
-   * @param identityName the name of the account to query for
-   * @return the base32 encoded password
+   * returns the password for the given identityName
+   * @param identityName the name of the identity
+   * @param context a SailPointContext to use
+   * @return the password of the identity
    * @throws GeneralException
    * @throws SQLException
    */
-  private String returnPasswordFromDB(String identityName) throws GeneralException, SQLException {
+  private String returnPasswordFromDB(String identityName, SailPointContext context) throws GeneralException, SQLException {
     if (_logger.isDebugEnabled()) {
       _logger.debug(String.format("ENTERING method %s(identityName %s)", "returnPasswordFromDB", identityName));
     }
@@ -622,10 +711,15 @@ public class TinyMfaService extends BasePluginResource {
     prepStatement.setString(1, identityName);
 
     ResultSet rs = prepStatement.executeQuery();
+    _logger.trace("query for pw executed");
     if (rs.next()) {
       if(shallEncryptPassword()) {
-        SailPointContext context = getContext();
+        String encryptedPassword = rs.getString(1);
+        _logger.trace("got password " + encryptedPassword);
+        _logger.trace("getting context");
+        _logger.trace("decrypting");
         result = context.decrypt(rs.getString(1));
+        _logger.trace("got decrypted pw " + result);
       } else {
         result = rs.getString(1);
       }
@@ -716,6 +810,10 @@ public class TinyMfaService extends BasePluginResource {
     return result;
   }
   
+  /**
+   * returns whether the plugin is configured to encrypt passwords
+   * @return true when configured to encrypt passwords
+   */
   private boolean shallEncryptPassword() {
     if (_logger.isDebugEnabled()) {
       _logger.debug(String.format("ENTERING method %s()", "shallEncryptPassword"));
