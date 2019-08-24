@@ -4,9 +4,38 @@
 	var app = angular.module('tinyMfaPluginApp');
 	
 	/** HOME Controller **/
-	app.controller('HomeController', function($scope) {
-		$scope.headline = 'Welcome!';
-	});
+	app.controller('HomeController', ['$scope', '$http', '$timeout', function($scope, $http, $timeout) {
+		$scope.headline            = 'Welcome!';
+		$scope.iosAppstoreLink     = '';
+		$scope.androidAppstoreLink = '';
+		
+		function populateAppstoreLinks($scope, $http) {
+            $http({
+                method  : "GET",
+                withCredentials: true,
+                xsrfHeaderName : "X-XSRF-TOKEN",
+                xsrfCookieName : "CSRF-TOKEN",
+                url : PluginHelper.getPluginRestUrl('tiny-mfa') + '/getAppstoreLinks'
+            }).then(function mySuccess(response) {
+                var appstoreLinkObject     = response.data;
+                $scope.iosAppstoreLink     = appstoreLinkObject.iosAppstoreLink;
+                $scope.androidAppstoreLink = appstoreLinkObject.androidAppstoreLink;
+            
+            }, function myError(response) {
+                $scope.errorMessage  = "There was an issue retrieving the appstore links to the MFA apps.";
+                
+                $timeout(function() {
+                    $scope.errorMessage  = null;
+                }, 3000);
+            });
+        };
+        try {
+            populateAppstoreLinks($scope, $http);
+        }catch(error) {
+            $scope.errorMessage  = error.message;
+        }
+		
+    }]);
 	
 	/** QRCode Controller **/
 	app.controller('QRCodeController', ['$scope', '$http', '$timeout', function($scope, $http, $timeout) {

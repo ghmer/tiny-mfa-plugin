@@ -7,9 +7,11 @@
       <entry key="settings">
         <value>
           <List>
-            <Setting name="shallEncrypt" dataType="boolean" defaultValue="true" helpText="Should generated passwords be encrypted with the sailpoint encryption key" label="Encrypt Passwords"/>
-            <Setting name="issuerDomain" dataType="string" defaultValue="sailpoint.labs" helpText="define the domainname that gets appended to the account. This is for convinience of the user and does not have any effects on token calculation" label="issuer domain"/>
-            <Setting name="maxAttempts" dataType="int" defaultValue="15" helpText="how much attempts are allowed for a given timesegment until we don't validate anymore" label="maximum validation attempts"/>
+            <Setting name="shallEncrypt"  dataType="boolean" defaultValue="true" helpText="Should generated passwords be encrypted with the sailpoint encryption key" label="Encrypt Passwords"/>
+            <Setting name="issuerDomain"  dataType="string"  defaultValue="sailpoint.labs" helpText="define the domainname that gets appended to the account. This is for convinience of the user and does not have any effects on token calculation" label="issuer domain"/>
+            <Setting name="maxAttempts"   dataType="int"     defaultValue="15" helpText="how much attempts are allowed for a given timesegment until we don't validate anymore" label="maximum validation attempts"/>
+            <Setting name="mfaAppIos"     dataType="string"  defaultValue="https://apps.apple.com/app/google-authenticator/id388497605" helpText="The link to the appstore page of the MFA tool for iOS. Defaults to Google Authenticator" label="iOS Appstore Link"/>
+            <Setting name="mfaAppAndroid" dataType="string"  defaultValue="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" helpText="The link to the appstore page of the MFA tool for Android. Defaults to Google Authenticator" label="Android Appstore Link"/>
           </List>
         </value>
       </entry>
