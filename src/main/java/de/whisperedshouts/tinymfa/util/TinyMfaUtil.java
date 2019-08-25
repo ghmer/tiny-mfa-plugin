@@ -62,11 +62,13 @@ public class TinyMfaUtil {
     Date accessTime     = resultSet.getDate(2);
     String cts          = resultSet.getString(3);
     String accountName  = resultSet.getString(4);
-    boolean succeeded   = resultSet.getBoolean(5);
+    String status       = resultSet.getString(5);
+    boolean succeeded   = resultSet.getBoolean(6);
 
     Map<String, Object> auditObject = new HashMap<>();
     auditObject.put("id", id);
     auditObject.put("account", accountName);
+    auditObject.put("status", status);
     auditObject.put("accessTime", accessTime);
     auditObject.put("cts", cts);
     auditObject.put("succeeded", succeeded);

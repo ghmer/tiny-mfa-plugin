@@ -574,7 +574,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
           isAuthenticated     = (generatedToken == sanitizedToken);
 
           // log the attempt
-          insertValidationAttemptToDb(identityName, currentUnixTime, isAuthenticated);
+          insertValidationAttemptToDb(identityName, currentUnixTime, isDisabled, isAuthenticated);
         } catch (GeneralException | SQLException e) {
           _logger.error(e.getMessage());
         }
@@ -648,7 +648,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
    * @throws GeneralException
    * @throws SQLException
    */
-  private boolean insertValidationAttemptToDb(String identityName, long cts, boolean succeeded)
+  private boolean insertValidationAttemptToDb(String identityName, long cts, boolean isDisabled, boolean succeeded)
       throws GeneralException, SQLException {
     if (_logger.isDebugEnabled()) {
       _logger.debug(String.format("ENTERING method %s(identityName %s, cts %s, succeeded %s)",
@@ -663,7 +663,8 @@ public class TinyMfaRestInterface extends BasePluginResource {
     prepStatement.setDate(1, new java.sql.Date(new java.util.Date().getTime()));
     prepStatement.setLong(2, cts);
     prepStatement.setString(3, identityName);
-    prepStatement.setBoolean(4, succeeded);
+    prepStatement.setString(4, (isDisabled) ? "active" : "inactive");
+    prepStatement.setBoolean(5, succeeded);
 
     int resultCode = prepStatement.executeUpdate();
     if (resultCode != 0) {
