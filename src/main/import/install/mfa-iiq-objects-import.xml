@@ -145,7 +145,7 @@ if(clsLoader != null) {
     paramString[2] = SailPointContext.class;
 
     Class clObj = clsLoader.loadClass("de.whisperedshouts.tinymfa.rest.TinyMfaRestInterface");
-    java.lang.reflect.Method mToCall = clObj.getDeclaredMethod("validateToken", paramString);
+    java.lang.reflect.Method mToCall = clObj.getDeclaredMethod("isValidToken", paramString);
     boolean validateResult = mToCall.invoke(clObj.newInstance(), new Object[]{identityName, token, context});
     if(!validateResult) {
       response.put("mfaResponseMessage", "Token not correct");

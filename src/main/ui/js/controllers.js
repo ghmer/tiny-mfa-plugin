@@ -116,7 +116,7 @@
     $scope.validationSuccess = null;
 
     try {
-      $scope.validateToken = function(tokenValue){
+      $scope.isValidToken = function(tokenValue){
         $http({
           method  : "GET",
           withCredentials: true,

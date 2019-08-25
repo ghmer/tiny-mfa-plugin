@@ -5,8 +5,8 @@
   <div data-ng-show="validationSuccess" class="alert alert-success">
     <span data-ng-show="validationSuccess" data-ng-cloak>{{validationSuccess}}</span>
   </div>
-  <form data-ng-submit="validateToken(tokenValue)">
-    <table id="validateTokenTable"
+  <form data-ng-submit="isValidToken(tokenValue)">
+    <table id="isValidTokenTable"
       class="table-striped table-hover table-condensed">
       <tr>
         <th>Enter your 6 digit token below</th>

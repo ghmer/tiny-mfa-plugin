@@ -103,7 +103,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
     SailPointContext context = getContext();
     
     // that's what we care for
-    Boolean isAuthenticated = validateToken(identityName, token, context);
+    Boolean isAuthenticated = isValidToken(identityName, token, context);
     Identity identity       = null;
     Capability capability   = null;
 
@@ -488,20 +488,20 @@ public class TinyMfaRestInterface extends BasePluginResource {
   @GET
   @Produces(MediaType.TEXT_PLAIN)
   @Path("token/validate/{identityName}/{token}")
-  public Boolean validateToken(@PathParam("identityName") String identityName, @PathParam("token") String token) {
+  public Boolean isValidToken(@PathParam("identityName") String identityName, @PathParam("token") String token) {
     if (_logger.isDebugEnabled()) {
       _logger
-          .debug(String.format("ENTERING method %s(identityName %s, token %s)", "validateToken", identityName, token));
+          .debug(String.format("ENTERING method %s(identityName %s, token %s)", "isValidToken", identityName, token));
     }
 
     SailPointContext context = getContext();
 
     // that's what we care for
     Boolean isAuthenticated = false;
-    isAuthenticated         = validateToken(identityName, token, context);
+    isAuthenticated         = isValidToken(identityName, token, context);
 
     if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "validateToken", isAuthenticated));
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "isValidToken", isAuthenticated));
     }
     return isAuthenticated;
   }
@@ -519,10 +519,10 @@ public class TinyMfaRestInterface extends BasePluginResource {
    *          a SailPointContext to use
    * @return true whether the token could be validated
    */
-  public Boolean validateToken(String identityName, String token, SailPointContext context) {
+  public Boolean isValidToken(String identityName, String token, SailPointContext context) {
     if (_logger.isDebugEnabled()) {
       _logger
-          .debug(String.format("ENTERING method %s(identityName %s, token %s, context %s)", "validateToken", identityName, token, context));
+          .debug(String.format("ENTERING method %s(identityName %s, token %s, context %s)", "isValidToken", identityName, token, context));
     }
 
     // that's what we care for
@@ -581,7 +581,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
     }
 
     if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "validateToken", isAuthenticated));
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "isValidToken", isAuthenticated));
     }
     return isAuthenticated;
   }
