@@ -1,24 +1,15 @@
-package de.whisperedshouts.identityiq.rest;
+package de.whisperedshouts.tinymfa.rest;
 
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SignatureException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
-import java.util.concurrent.TimeUnit;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -27,9 +18,10 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import org.apache.commons.codec.binary.Base32;
 import org.apache.log4j.Logger;
 
+import de.whisperedshouts.tinymfa.TinyMfaImplementation;
+import de.whisperedshouts.tinymfa.util.TinyMfaUtil;
 import sailpoint.api.SailPointContext;
 import sailpoint.object.Capability;
 import sailpoint.object.Identity;
@@ -41,35 +33,26 @@ import sailpoint.tools.GeneralException;
 
 /**
  * This is a rest service used by the IdentityIQ TinyMFA plugin. Its purpose is
- * - To generate totp tokens for an identity - To supply the identity with a
- * proper otpauth url (to be used in QRCodes) - To serve as a backend to verify
- * tokens
+ * - To generate totp tokens for an identity 
+ * - To supply the identity with a proper otpauth url (to be used in QRCodes) 
+ * - To serve as a backend to verify tokens
  * 
- * @author Mario Ragucci
+ * @author Mario Enrico Ragucci <mario@whisperedshouts.de>
  *
  */
 @Path("tiny-mfa")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.TEXT_PLAIN)
 @AllowAll
-public class TinyMfaService extends BasePluginResource {
+public class TinyMfaRestInterface extends BasePluginResource {
   // a logger object. Make use of it!
-  public static final Logger _logger = Logger.getLogger(TinyMfaService.class);
+  private static final Logger _logger = Logger.getLogger(TinyMfaRestInterface.class);
 
   //the capability to assign once a user shall be mfa activated
    public static final String CAPABILITY_ACTIVATED_IDENTITY_NAME = "TinyMFAActivatedIdentity";
    
   //the administrative SPRight name
   public static final String SPRIGHT_ADMINISTRATOR_NAME = "TinyMfaPluginAdministrator";
-
-  // this is the default, static width used in the dynamic truncation
-  public static final int DYNAMIC_TRUNCATION_WIDTH = 4;
-
-  // that big is our key to be
-  public static final int FINAL_SECRET_SIZE = 16;
-
-  // this is the algorithm that is used to generate the rfc2104hmac hexstring
-  public static final String HMAC_SHA1_ALGORITHM = "HmacSHA1";
 
   // a format string for the qr code
   public static final String QR_CODE_FORMATSTRING = "otpauth://totp/%1$s:%2$s@%1$s?algorithm=SHA1&digits=6&issuer=%1$s&period=30&secret=%3$s";
@@ -101,235 +84,6 @@ public class TinyMfaService extends BasePluginResource {
 
   // select unencrypted passwords from the database
   public static final String SQL_SELECT_UNENCRYPTED_PWS = "SELECT ACCOUNT_NAME, USERPASSWORD, ISENCRYPTED FROM MFA_ACCOUNTS WHERE ISENCRYPTED = ?";
-
-  // update password
-  public static final String SQL_UPDATE_PASSWORD_FIELDS = "UPDATE MFA_ACCOUNTS SET USERPASSWORD = ?, ISENCRYPTED = ? WHERE ACCOUNT_NAME = ?";
-
-  /**
-   * Calculates the hmac hash and returns its byteArray representation
-   * 
-   * @param data
-   *          the message to hash (usually a timestamp)
-   * @param key
-   *          the secretKey to use
-   * @return the byteArray representation of the calculated hmac
-   * @throws SignatureException
-   * @throws NoSuchAlgorithmException
-   * @throws InvalidKeyException
-   */
-  private static byte[] calculateRFC2104HMAC(byte[] data, byte[] key)
-      throws SignatureException, NoSuchAlgorithmException, InvalidKeyException {
-    if (_logger.isTraceEnabled()) {
-      _logger.trace(String.format("ENTERING method %s(data %s, key %s)", "calculateRFC2104HMAC", data, key));
-    }
-    byte[] result = null;
-    SecretKeySpec signingKey = new SecretKeySpec(key, HMAC_SHA1_ALGORITHM);
-    Mac messageAuthCode      = Mac.getInstance(HMAC_SHA1_ALGORITHM);
-    
-    messageAuthCode.init(signingKey);
-    result = messageAuthCode.doFinal(data);
-
-    if (_logger.isTraceEnabled()) {
-      _logger.trace(String.format("LEAVING method %s (returns: %s)", "calculateRFC2104HMAC", result));
-    }
-    return result;
-  }
-
-  /**
-   * Generates a new secretKey and encodes it to base32
-   * 
-   * @return the base32 encoded secretKey
-   */
-  private static String generateBase32EncodedSecretKey() {
-    if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("ENTERING method %s()", "generateBase32EncodedSecretKey"));
-    }
-    // Allocating the buffer
-    byte[] buffer = new byte[128];
-
-    // Filling the buffer with random numbers.
-    new Random().nextBytes(buffer);
-
-    // Getting the key and converting it to Base32
-    Base32 codec        = new Base32();
-    byte[] secretKey    = Arrays.copyOf(buffer, TinyMfaService.FINAL_SECRET_SIZE);
-    byte[] bEncodedKey  = codec.encode(secretKey);
-    String encodedKey   = new String(bEncodedKey);
-
-    if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "generateBase32EncodedSecretKey", encodedKey));
-    }
-    return encodedKey;
-  }
-
-  /**
-   * generates a valid token for a timestamp and a base32 encoded secretKey
-   * 
-   * @param message
-   *          the timestamp to use when calculating the token
-   * @param key
-   *          the base32 encoded secretKey
-   * @return the current valid token for this key
-   * @throws GeneralException
-   */
-  private static int generateValidToken(Long message, String key) throws GeneralException {
-    if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("ENTERING method %s(message %s, key %s)", "generateValidToken", message, key));
-    }
-    int token           = 0;
-    byte[] keyBytes     = null;
-    byte[] messageBytes = null;
-    // let's process
-    try {
-      // the key is base32 encoded
-      keyBytes = new Base32().decode(key);
-      // get an 8byte array derived from the message
-      messageBytes = TinyMfaService.longToByteArray(message);
-      // generate the rfc2104hmac String out of timestamp and key
-      byte[] rfc2104hmac = TinyMfaService.calculateRFC2104HMAC(messageBytes, keyBytes);
-
-      // get the decimal representation of the last byte
-      // this will be used as a offset. i.E if the last byte was 4 (as decimal),
-      // we will derive the dynamic trunacted result, starting at the 4th index of the byte array
-      int offset = rfc2104hmac[(rfc2104hmac.length - 1)] & 0xF;
-      if (_logger.isTraceEnabled()) {
-        _logger.trace(String.format("using offset %d for dynamic truncation", (int) offset));
-      }
-      // probably int is too small (since there is no unsigned integer)
-      // therefore, a long variable is used
-      long dynamicTruncatedResult = 0;
-      for (int i = 0; i < DYNAMIC_TRUNCATION_WIDTH; ++i) {
-        // shift 8bit to the left to make room for the next byte
-        dynamicTruncatedResult <<= 8;
-        // perform a bitwise inclusive OR on the next offset
-        // this adds the next digit to the dynamic truncated result
-        dynamicTruncatedResult |= (rfc2104hmac[offset + i] & 0xFF);
-      }
-
-      // setting the most significant bit to 0
-      dynamicTruncatedResult &= 0x7FFFFFFF;
-      // making sure we get the right amount of numbers
-      dynamicTruncatedResult %= 1000000;
-
-      token = (int) dynamicTruncatedResult;
-
-    } catch (InvalidKeyException | SignatureException | NoSuchAlgorithmException e) {
-      _logger.error(e.getMessage(), e);
-      throw new GeneralException(e.getMessage());
-    }
-
-    if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "generateValidToken", token));
-    }
-    return token;
-  }
-
-  /**
-   * returns a message based on a "corrected timestamp" This method will get the
-   * current system time (Milliseconds since 1970), then remove the seconds
-   * elapsed since the last half minute (i.E. 34 -> 30). Last, we divide this by
-   * 30.
-   * 
-   * @return the message
-   */
-  private static long getValidMessageBySystemTimestamp() {
-    if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("ENTERING method %s()", "getValidMessageBySystemTimestamp"));
-    }
-    long systemTime = System.currentTimeMillis();
-    long message    = systemTime - (systemTime % 30);
-    message         = (long) Math.floor(message / TimeUnit.SECONDS.toMillis(30));
-
-    if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "getValidMessageBySystemTimestamp", message));
-    }
-    return message;
-  }
-
-  /**
-   * converts a long to a byteArray.
-   * 
-   * @param message
-   *          the long to convert to a byteArray
-   * @return the byteArray according to specification
-   */
-  private static byte[] longToByteArray(long message) {
-    if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("ENTERING method %s(message %s)", "longToByteArray", message));
-    }
-
-    // define the array
-    byte[] data = new byte[8];
-    long value  = message;
-
-    for (int i = 8; i-- > 0; value >>>= 8) {
-      data[i]  = (byte) value;
-    }
-
-    if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "longToByteArray", data));
-    }
-    return data;
-  }
-
-  /**
-   * Some minor sanitation efforts to make the string input more reliable
-   * 
-   * @param token
-   *          the token to sanitize
-   * @param desiredLength
-   *          the desired length of the sanitized string
-   * @return a sanitizes token
-   */
-  private static int sanitizeToken(String token, int desiredLength) {
-    if (_logger.isDebugEnabled()) {
-      _logger.debug(
-          String.format("ENTERING method %s(token %s, desiredLength %s)", "sanitizeToken", token, desiredLength));
-    }
-
-    // return variable
-    int result   = 0;
-    // current position result variable
-    int position = 0;
-
-    // iterate over string characters
-    for (int i = 0; i < token.length(); i++) {
-      if (position >= desiredLength) {
-        break;
-      }
-      // cast to byte
-      byte b = (byte) token.charAt(i);
-      switch (b) {
-        case 32: break;         // space
-        case 33: b = 49; break; // exclamation mark to 1
-        case 66: b = 56; break; // capital B to 8
-        case 71: b = 54; break; // capital G to 6
-        case 73: b = 49; break; // capital I to 1
-        case 79: b = 48; break; // capital O to 0
-        case 98: b = 56; break; // smaller b to 8
-        case 103:b = 57; break; // smaller g to 9
-        case 105:b = 49; break; // smaller i to 1
-        case 111:b = 48; break; // smaller o to 0
-      }
-
-      // check if character is in allowed range
-      if (b >= 48 && 57 >= b) {
-        // add decimal representation of the character to the result variable
-        result += b & 0xF;
-        // raise position
-        position++;
-        // as long as we have not met the desired length, shift value to left
-        if (position != desiredLength) {
-          result *= 10;
-        }
-      }
-    }
-
-    if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "sanitizeToken", result));
-    }
-    return result;
-  }
 
   /**
    * activates a token for an identity
@@ -394,46 +148,6 @@ public class TinyMfaService extends BasePluginResource {
   }
 
   /**
-   * Encrypts unencrypted passwords on the database using the SailPoint
-   * encryption key
-   * 
-   * @return number of processed items
-   */
-  @GET
-  @Produces(MediaType.TEXT_PLAIN)
-  @Path("encryptPasswords")
-  public Response encryptPasswords() {
-    if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("ENTERING method %s()", "encryptPasswords"));
-    }
-    int result            = 0;
-    boolean hasError      = false;
-    Connection connection = null;
-    PreparedStatement prepStatement  = null;
-    try {
-      connection    = getConnection();
-      prepStatement = connection.prepareStatement(TinyMfaService.SQL_SELECT_UNENCRYPTED_PWS);
-      prepStatement.setBoolean(1, false);
-      ResultSet rs = prepStatement.executeQuery();
-      while (rs.next()) {
-        String accountName = rs.getString(1);
-        String password = rs.getString(2);
-        encryptPassword(accountName, password);
-        result++;
-      }
-    } catch (Exception e) {
-      _logger.error(e.getMessage());
-      hasError = true;
-    }
-
-    if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "encryptPasswords", result));
-    }
-
-    return (hasError) ? Response.serverError().build() : Response.ok().entity(result).build();
-  }
-
-  /**
    * returns the requested account details
    * 
    * @param identityName
@@ -454,12 +168,12 @@ public class TinyMfaService extends BasePluginResource {
     PreparedStatement prepStatement  = null;
     try {
       connection    = getConnection();
-      prepStatement = connection.prepareStatement(TinyMfaService.SQL_SELECT_ACCOUNT);
+      prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_SELECT_ACCOUNT);
       prepStatement.setString(1, identityName);
 
       ResultSet rs = prepStatement.executeQuery();
       while (rs.next()) {
-        Map<String, Object> accountObject = buildAccountObjectMap(rs);
+        Map<String, Object> accountObject = TinyMfaUtil.buildAccountObjectMap(rs);
         result.add(accountObject);
       }
 
@@ -505,11 +219,11 @@ public class TinyMfaService extends BasePluginResource {
     PreparedStatement prepStatement;
     try {
       connection = getConnection();
-      prepStatement = connection.prepareStatement(TinyMfaService.SQL_SELECT_ALL_ACCOUNTS);
+      prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_SELECT_ALL_ACCOUNTS);
 
       ResultSet rs = prepStatement.executeQuery();
       while (rs.next()) {
-        Map<String, Object> accountObject = buildAccountObjectMap(rs);
+        Map<String, Object> accountObject = TinyMfaUtil.buildAccountObjectMap(rs);
         result.add(accountObject);
       }
 
@@ -534,26 +248,6 @@ public class TinyMfaService extends BasePluginResource {
     }
 
     return Response.ok().entity(result).build();
-  }
-
-  /**
-   * builds a Map containing account information from a resultSet
-   * @param resultSet the resultset to get the information form
-   * @return the Map containing the account information
-   * @throws SQLException
-   */
-  private Map<String, Object> buildAccountObjectMap(ResultSet resultSet) throws SQLException {
-    String id           = resultSet.getString(1);
-    String accountName  = resultSet.getString(2);
-    boolean isEncrypted = resultSet.getBoolean(3);
-    boolean isDisabled  = resultSet.getBoolean(4);
-
-    Map<String, Object> accountObject = new HashMap<>();
-    accountObject.put("id", id);
-    accountObject.put("account", accountName);
-    accountObject.put("encrypted", isEncrypted);
-    accountObject.put("disabled", isDisabled);
-    return accountObject;
   }
 
   /**
@@ -602,10 +296,10 @@ public class TinyMfaService extends BasePluginResource {
     PreparedStatement prepStatement   = null;
     try {
       connection = getConnection();
-      prepStatement = connection.prepareStatement(TinyMfaService.SQL_SELECT_AUDIT);
+      prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_SELECT_AUDIT);
       ResultSet rs = prepStatement.executeQuery();
       while (rs.next()) {
-        Map<String, Object> auditObject = buildAuditObjectMap(rs);
+        Map<String, Object> auditObject = TinyMfaUtil.buildAuditObjectMap(rs);
         result.add(auditObject);
       }
 
@@ -647,7 +341,7 @@ public class TinyMfaService extends BasePluginResource {
       _logger.trace(userRights);
       for(String userRight : userRights) {
         _logger.trace("userRight: " + userRight);
-        if(userRight.equalsIgnoreCase(TinyMfaService.SPRIGHT_ADMINISTRATOR_NAME)) {
+        if(userRight.equalsIgnoreCase(TinyMfaRestInterface.SPRIGHT_ADMINISTRATOR_NAME)) {
           result = true;
           break;
         }
@@ -692,10 +386,10 @@ public class TinyMfaService extends BasePluginResource {
     PreparedStatement prepStatement   = null;
     try {
       connection = getConnection();
-      prepStatement = connection.prepareStatement(TinyMfaService.SQL_SELECT_AUDIT);
+      prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_SELECT_AUDIT);
       ResultSet rs = prepStatement.executeQuery();
       while (rs.next() && count < limit) {
-        Map<String, Object> auditObject = buildAuditObjectMap(rs);
+        Map<String, Object> auditObject = TinyMfaUtil.buildAuditObjectMap(rs);
         result.add(auditObject);
         count++;
       }
@@ -721,35 +415,6 @@ public class TinyMfaService extends BasePluginResource {
     }
 
     return Response.ok().entity(result).build();
-  }
-
-  /**
-   * builds a Map with audit information
-   * @param resultSet the resultset to get the information from
-   * @return Map containing the audit information
-   * @throws SQLException
-   */
-  private Map<String, Object> buildAuditObjectMap(ResultSet resultSet) throws SQLException {
-    if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("ENTERING method %s(resultSet %s)", "buildAuditObjectMap", resultSet));
-    }
-    String id           = resultSet.getString(1);
-    Date accessTime     = resultSet.getDate(2);
-    String cts          = resultSet.getString(3);
-    String accountName  = resultSet.getString(4);
-    boolean succeeded   = resultSet.getBoolean(5);
-
-    Map<String, Object> auditObject = new HashMap<>();
-    auditObject.put("id", id);
-    auditObject.put("account", accountName);
-    auditObject.put("accessTime", accessTime);
-    auditObject.put("cts", cts);
-    auditObject.put("succeeded", succeeded);
-    
-    if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "buildAuditObjectMap", auditObject));
-    }
-    return auditObject;
   }
 
   @Override
@@ -792,7 +457,7 @@ public class TinyMfaService extends BasePluginResource {
       SailPointContext context  = null;
       try {
         context      = getContext();
-        userPassword = returnPasswordFromDB(identityName, context);
+        userPassword = returnPasswordFromDb(identityName, context);
         if (userPassword == null || userPassword.isEmpty()) {
           userPassword = createAccount(identityName, context);
         }
@@ -881,7 +546,7 @@ public class TinyMfaService extends BasePluginResource {
       int maximumAllowedValidationAttempts = PluginBaseHelper.getSettingInt(getPluginName(), "maxAttempts");
 
       // get the current timestamp to generate the token
-      long currentUnixTime = getValidMessageBySystemTimestamp();
+      long currentUnixTime = TinyMfaImplementation.getValidMessageBySystemTimestamp();
 
       // check for validation attempts, initialize with safety in mind
       int attemptsForTimestamp = maximumAllowedValidationAttempts + 1;
@@ -896,14 +561,14 @@ public class TinyMfaService extends BasePluginResource {
       if (attemptsForTimestamp < maximumAllowedValidationAttempts) {
         int generatedToken = 0;
         // sanitize the token (just to be sure)
-        int sanitizedToken = TinyMfaService.sanitizeToken(token, 6);
+        int sanitizedToken = TinyMfaUtil.sanitizeToken(token, 6);
 
         try {
           if (context == null) {
             context = getContext();
           }
-          String userPassword = returnPasswordFromDB(identityName, context);
-          generatedToken      = TinyMfaService.generateValidToken(currentUnixTime, userPassword);
+          String userPassword = returnPasswordFromDb(identityName, context);
+          generatedToken      = TinyMfaImplementation.generateValidToken(currentUnixTime, userPassword);
 
           // if codes match, you are welcome
           isAuthenticated     = (generatedToken == sanitizedToken);
@@ -945,12 +610,12 @@ public class TinyMfaService extends BasePluginResource {
     String generatedPassword = null;
     String encryptedPassword = null;
 
-    generatedPassword = TinyMfaService.generateBase32EncodedSecretKey();
+    generatedPassword = TinyMfaImplementation.generateBase32EncodedSecretKey();
     encryptedPassword = context.encrypt(generatedPassword);
   
 
     Connection connection = getConnection();
-    PreparedStatement prepStatement = connection.prepareStatement(TinyMfaService.SQL_CREATE_NEW_ACCOUNT_QUERY);
+    PreparedStatement prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_CREATE_NEW_ACCOUNT_QUERY);
 
     prepStatement.setString(1, identityName);
     prepStatement.setString(2, encryptedPassword);
@@ -970,44 +635,6 @@ public class TinyMfaService extends BasePluginResource {
       _logger.debug(String.format("LEAVING method %s (returns: %s)", "createAccount", generatedPassword));
     }
     return generatedPassword;
-  }
-
-  /**
-   * encrypts a password using the SailPoint encryption key
-   * 
-   * @param accountName
-   *          the accountName that identifies the dataentry to modify
-   * @param password
-   *          the password to be stored as an encrypted value
-   * @throws Exception
-   */
-  private void encryptPassword(String accountName, String password) throws Exception {
-    if (_logger.isDebugEnabled()) {
-      _logger.debug(
-          String.format("ENTERING method %s(accountName %s, password %s)", "encryptPassword", accountName, password));
-    }
-
-    try {
-      SailPointContext context = getContext();
-      Connection connection = getConnection();
-      PreparedStatement preparedStatement = connection.prepareStatement(TinyMfaService.SQL_UPDATE_PASSWORD_FIELDS);
-      String encryptedPassword = context.encrypt(password);
-      preparedStatement.setString(1, encryptedPassword);
-      preparedStatement.setString(2, "true");
-      preparedStatement.setString(3, accountName);
-
-      int resultCode = preparedStatement.executeUpdate();
-      if (_logger.isDebugEnabled()) {
-        _logger.debug("Update result code: " + resultCode);
-      }
-    } catch (Exception e) {
-      _logger.error(e.getMessage());
-      throw new Exception(e);
-    }
-
-    if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "encryptPassword", "void"));
-    }
   }
 
   /**
@@ -1031,7 +658,7 @@ public class TinyMfaService extends BasePluginResource {
     boolean wasCompleted = false;
 
     Connection connection           = getConnection();
-    PreparedStatement prepStatement = connection.prepareStatement(TinyMfaService.SQL_INSERT_VALIDATION_ATTEMPT);
+    PreparedStatement prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_INSERT_VALIDATION_ATTEMPT);
     
     prepStatement.setDate(1, new java.sql.Date(new java.util.Date().getTime()));
     prepStatement.setLong(2, cts);
@@ -1071,7 +698,7 @@ public class TinyMfaService extends BasePluginResource {
     }
     boolean isDisabled              = true;
     Connection connection           = getConnection();
-    PreparedStatement prepStatement = connection.prepareStatement(TinyMfaService.SQL_IS_ACCOUNT_DISABLED);
+    PreparedStatement prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_IS_ACCOUNT_DISABLED);
 
     prepStatement.setString(1, identityName);
 
@@ -1110,7 +737,7 @@ public class TinyMfaService extends BasePluginResource {
     }
     int result            = 0;
     Connection connection = getConnection();
-    PreparedStatement prepStatement = connection.prepareStatement(TinyMfaService.SQL_COUNT_VALIDATION_ATTEMPTS);
+    PreparedStatement prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_COUNT_VALIDATION_ATTEMPTS);
 
     prepStatement.setString(1, identityName);
     prepStatement.setLong(2, cts);
@@ -1142,15 +769,15 @@ public class TinyMfaService extends BasePluginResource {
    * @throws GeneralException
    * @throws SQLException
    */
-  private String returnPasswordFromDB(String identityName, SailPointContext context)
+  private String returnPasswordFromDb(String identityName, SailPointContext context)
       throws GeneralException, SQLException {
     if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("ENTERING method %s(identityName %s, context %s)", "returnPasswordFromDB",
+      _logger.debug(String.format("ENTERING method %s(identityName %s, context %s)", "returnPasswordFromDb",
           identityName, context));
     }
     String result         = null;
     Connection connection = getConnection();
-    PreparedStatement prepStatement = connection.prepareStatement(TinyMfaService.SQL_RETRIEVE_PASSWORD_QUERY);
+    PreparedStatement prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_RETRIEVE_PASSWORD_QUERY);
 
     prepStatement.setString(1, identityName);
 
@@ -1165,7 +792,7 @@ public class TinyMfaService extends BasePluginResource {
     connection.close();
 
     if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "returnPasswordFromDB", result));
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "returnPasswordFromDb", result));
     }
     return result;
   }

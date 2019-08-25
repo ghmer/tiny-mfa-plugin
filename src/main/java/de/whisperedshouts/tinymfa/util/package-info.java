@@ -5,4 +5,4 @@
  * @author mario.ragucci
  *
  */
-package de.whisperedshouts.identityiq.rest;
+package de.whisperedshouts.tinymfa.util;

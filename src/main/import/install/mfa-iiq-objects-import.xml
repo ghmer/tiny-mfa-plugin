@@ -144,7 +144,7 @@ if(clsLoader != null) {
     paramString[1] = String.class;
     paramString[2] = SailPointContext.class;
 
-    Class clObj = clsLoader.loadClass("de.whisperedshouts.identityiq.rest.TinyMfaService");
+    Class clObj = clsLoader.loadClass("de.whisperedshouts.tinymfa.rest.TinyMfaRestInterface");
     java.lang.reflect.Method mToCall = clObj.getDeclaredMethod("validateToken", paramString);
     boolean validateResult = mToCall.invoke(clObj.newInstance(), new Object[]{identityName, token, context});
     if(!validateResult) {
