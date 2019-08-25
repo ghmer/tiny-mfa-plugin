@@ -3,7 +3,7 @@
       <span data-ng-show="qrCodeError" data-ng-cloak>{{qrCodeError}}</span>
       <span>{{errorMessage}}</span>
   </div>
-  <div data-ng-show="!qrCodeError" data-ng-cloak>
+  <div data-ng-show="qrCode" data-ng-cloak>
       <div data-ng-show="!qrCodeError" id="qrCodeDiv" data-ng-cloak>
         <img data-crossorigin="anonymous" src="{{qrCode}}" width="400" height="400" style="width: 300px; height: 300px"></img>
       </div>

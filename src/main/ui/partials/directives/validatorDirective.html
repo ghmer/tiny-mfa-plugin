@@ -6,13 +6,13 @@
     <span data-ng-show="validationSuccess" data-ng-cloak>{{validationSuccess}}</span>
   </div>
   <form data-ng-submit="validateToken(tokenValue)">
-    <table id="validateTokenTable" class="table-striped table-hover table-condensed"witdh="400px">
+    <table id="validateTokenTable" class="table-striped table-hover table-condensed">
       <tr>
         <th>Enter your 6 digit token below</th>
         <th>&nbsp;</th>
       </tr>
       <tr>
-        <td><input type="text" pattern="^\d{6,6}$" ng-pattern-restrict name="tokenValue" data-ng-model="tokenValue" class="form-control" required/></td>
+        <td><input type="text" pattern="^\d{6,6}$" data-ng-pattern-restrict name="tokenValue" data-ng-model="tokenValue" class="form-control" required/></td>
         <td><input type="submit" value="validate" class="btn btn-link btn-large btn-block"/></td>
       </tr>
      </table>
