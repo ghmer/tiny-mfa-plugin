@@ -5,6 +5,7 @@ package de.whisperedshouts.tinymfa.util;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -19,7 +20,8 @@ import org.apache.log4j.Logger;
 public class TinyMfaUtil {
 
   //a logger object. Make use of it!
-  private static final Logger _logger = Logger.getLogger(TinyMfaUtil.class);
+  private static final Logger _logger     = Logger.getLogger(TinyMfaUtil.class);
+  public static final String DATE_FORMAT  = "yyyy-MM-dd HH:mm:ss z";
  
   /**
    * builds a Map containing account information from a resultSet
@@ -57,7 +59,7 @@ public class TinyMfaUtil {
       _logger.debug(String.format("ENTERING method %s(resultSet %s)", "buildAuditObjectMap", resultSet));
     }
     String id           = resultSet.getString(1);
-    Date accessTime     = resultSet.getDate(2);
+    long accessTime     = resultSet.getLong(2);
     String cts          = resultSet.getString(3);
     String accountName  = resultSet.getString(4);
     String status       = resultSet.getString(5);
@@ -67,7 +69,7 @@ public class TinyMfaUtil {
     auditObject.put("id", id);
     auditObject.put("account", accountName);
     auditObject.put("status", status);
-    auditObject.put("accessTime", accessTime);
+    auditObject.put("accessTime", formatAccessTime(accessTime));
     auditObject.put("cts", cts);
     auditObject.put("succeeded", succeeded);
     
@@ -77,6 +79,27 @@ public class TinyMfaUtil {
     return auditObject;
   }
   
+  private static Object formatAccessTime(long accessTime) {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(
+          String.format("ENTERING method %s(accessTime %s)", "formatAccessTime", accessTime));
+    }
+    String result         = String.valueOf(accessTime);
+    try {
+      SimpleDateFormat sdf  = new SimpleDateFormat(TinyMfaUtil.DATE_FORMAT);
+      Date accessTimeDate   = new Date(accessTime);
+      
+      result = sdf.format(accessTimeDate);
+    } catch(Exception e) {
+      _logger.error(e.getMessage());
+    }
+    
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "formatAccessTime", result));
+    }
+    return result;
+  }
+
   /**
    * Some minor sanitation efforts to make the string input more reliable
    * 

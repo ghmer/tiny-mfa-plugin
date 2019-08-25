@@ -655,7 +655,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
     Connection connection           = getConnection();
     PreparedStatement prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_INSERT_VALIDATION_ATTEMPT);
     
-    prepStatement.setDate(1, new java.sql.Date(new java.util.Date().getTime()));
+    prepStatement.setLong(1, new java.util.Date().getTime());
     prepStatement.setLong(2, cts);
     prepStatement.setString(3, identityName);
     prepStatement.setString(4, (!isDisabled) ? "active" : "inactive");
