@@ -100,13 +100,14 @@ public class TinyMfaRestInterface extends BasePluginResource {
           .debug(String.format("ENTERING method %s(identityName %s, token %s)", "activateToken", identityName, token));
     }
 
+    SailPointContext context = getContext();
+    
     // that's what we care for
-    Boolean isAuthenticated = validateToken(identityName, token);
+    Boolean isAuthenticated = validateToken(identityName, token, context);
     Identity identity       = null;
     Capability capability   = null;
 
     if (isAuthenticated) {
-      SailPointContext context = getContext();
       try {
         identity = context.getObjectByName(Identity.class, identityName);
       } catch (GeneralException e) {
@@ -116,7 +117,6 @@ public class TinyMfaRestInterface extends BasePluginResource {
     }
 
     if (identity != null) {
-      SailPointContext context = getContext();
       try {
         capability = context.getObjectByName(Capability.class, CAPABILITY_ACTIVATED_IDENTITY_NAME);
       } catch (GeneralException e) {
@@ -126,7 +126,6 @@ public class TinyMfaRestInterface extends BasePluginResource {
     }
 
     if (identity != null && capability != null) {
-      SailPointContext context = getContext();
       try {
         identity.add(capability);
         context.saveObject(identity);
