@@ -65,7 +65,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
   public static final String SQL_CREATE_NEW_ACCOUNT_QUERY = "INSERT INTO MFA_ACCOUNTS(ACCOUNT_NAME, USERPASSWORD, ISENCRYPTED, ISDISABLED) VALUES(?,?,?,?)";
 
   // insert a new validation attempt into the database
-  public static final String SQL_INSERT_VALIDATION_ATTEMPT = "INSERT INTO MFA_VALIDATION_ATTEMPTS(ACCESS_TIME,CTS,ACCOUNT_NAME,SUCCEEDED) VALUES(?,?,?,?)";
+  public static final String SQL_INSERT_VALIDATION_ATTEMPT = "INSERT INTO MFA_VALIDATION_ATTEMPTS(ACCESS_TIME,CTS,ACCOUNT_NAME,ACCOUNT_STATUS,SUCCEEDED) VALUES(?,?,?,?,?)";
 
   // check if user is disabled
   public static final String SQL_IS_ACCOUNT_DISABLED = "SELECT ISDISABLED FROM MFA_ACCOUNTS WHERE ACCOUNT_NAME=?";
@@ -80,10 +80,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
   public static final String SQL_SELECT_ALL_ACCOUNTS = "SELECT ID, ACCOUNT_NAME, ISENCRYPTED, ISDISABLED FROM MFA_ACCOUNTS";
 
   // select audit trail
-  public static final String SQL_SELECT_AUDIT = "SELECT ID, ACCESS_TIME, CTS, ACCOUNT_NAME, SUCCEEDED FROM MFA_VALIDATION_ATTEMPTS ORDER BY ID DESC";
-
-  // select unencrypted passwords from the database
-  public static final String SQL_SELECT_UNENCRYPTED_PWS = "SELECT ACCOUNT_NAME, USERPASSWORD, ISENCRYPTED FROM MFA_ACCOUNTS WHERE ISENCRYPTED = ?";
+  public static final String SQL_SELECT_AUDIT = "SELECT ID, ACCESS_TIME, CTS, ACCOUNT_NAME, ACCOUNT_STATUS, SUCCEEDED FROM MFA_VALIDATION_ATTEMPTS ORDER BY ID DESC";
 
   /**
    * activates a token for an identity
