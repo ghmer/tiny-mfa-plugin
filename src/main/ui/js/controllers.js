@@ -154,7 +154,90 @@
 		}
 	}]);
 	
-	/** ActivateController Controller **/
+	/** AdminController Controller **/
+    app.controller('AdminController', ['$scope', '$http', '$timeout', function($scope, $http, $timeout) {
+        $scope.headline     = 'Tiny Multifactor Authentication - Admin Area';
+        $scope.currentPage  = 1;
+        $scope.numLimit     = 10;
+        $scope.start        = 0;
+        $scope.maxNumber    = 100;
+        $scope.validations  = [];
+        
+        $scope.$watch('numLimit',function(newVal){
+            if(newVal){
+             $scope.pages=Math.ceil($scope.validations.length/$scope.numLimit);
+            }
+        });
+        
+        $scope.$watch('maxNumber',function(newVal){
+            if(newVal){
+             $scope.getValidationAttempts($scope.maxNumber);
+             $scope.pages=Math.ceil($scope.validations.length/$scope.numLimit);
+            }
+        });
+        
+        $scope.$watch('validations',function(newVal){
+            if(newVal){
+             $scope.pages=Math.ceil($scope.validations.length/$scope.numLimit);
+            }
+        });
+        
+        $scope.hideNext=function(){
+          if(($scope.start + $scope.numLimit) < $scope.validations.length){
+            return false;
+          }
+          else 
+          return true;
+        };
+        
+        $scope.hidePrev=function(){
+          if($scope.start===0){
+            return true;
+          }
+          else 
+          return false;
+        };
+        
+        $scope.nextPage=function(){
+          console.log("next pages");
+          $scope.currentPage++;
+          $scope.start=$scope.start+ $scope.numLimit;
+          console.log( $scope.start)
+        };
+        
+        $scope.PrevPage=function(){
+          if($scope.currentPage>1){
+            $scope.currentPage--;
+          }
+          console.log("next pages");
+          $scope.start=$scope.start - $scope.numLimit;
+          console.log( $scope.start)
+        };
+        
+        $scope.getValidationAttempts = function() {
+            $http({
+                method  : "GET",
+                withCredentials: true,
+                xsrfHeaderName : "X-XSRF-TOKEN",
+                xsrfCookieName : "CSRF-TOKEN",
+                url : PluginHelper.getPluginRestUrl('tiny-mfa') + '/audit/' + $scope.maxNumber
+            }).then(function mySuccess(response) {
+                $scope.validations = response.data;
+
+            }, function myError(response) {
+                
+            });
+        };
+        
+        try {
+            $scope.getValidationAttempts($scope.maxNumber);
+        }catch(error) {
+            
+        }
+        
+    }]);
+    
+    /** ActivateController Controller **/
     app.controller('ActivateController', ['$scope', '$http', '$timeout', function($scope, $http, $timeout) {
         $scope.headline = 'Activate Multifactor Authentication';
         $scope.activationError   = null;

@@ -13,7 +13,7 @@ import org.apache.log4j.Logger;
 
 
 /**
- * @author mario.ragucci
+ * @author Mario Enrico Ragucci, mario@whisperedshouts.de
  *
  */
 public class TinyMfaUtil {
@@ -25,7 +25,7 @@ public class TinyMfaUtil {
    * builds a Map containing account information from a resultSet
    * @param resultSet the resultset to get the information form
    * @return the Map containing the account information
-   * @throws SQLException
+   * @throws SQLException when there was an error with the result set
    */
   public static Map<String, Object> buildAccountObjectMap(ResultSet resultSet) throws SQLException {
     if (_logger.isDebugEnabled()) {
@@ -33,13 +33,11 @@ public class TinyMfaUtil {
     }
     String id           = resultSet.getString(1);
     String accountName  = resultSet.getString(2);
-    boolean isEncrypted = resultSet.getBoolean(3);
-    boolean isDisabled  = resultSet.getBoolean(4);
+    boolean isDisabled  = resultSet.getBoolean(3);
 
     Map<String, Object> accountObject = new HashMap<>();
     accountObject.put("id", id);
     accountObject.put("account", accountName);
-    accountObject.put("encrypted", isEncrypted);
     accountObject.put("disabled", isDisabled);
     
     if (_logger.isDebugEnabled()) {
@@ -52,7 +50,7 @@ public class TinyMfaUtil {
    * builds a Map with audit information
    * @param resultSet the resultset to get the information from
    * @return Map containing the audit information
-   * @throws SQLException
+   * @throws SQLException when we hit an issue with the result set
    */
   public static Map<String, Object> buildAuditObjectMap(ResultSet resultSet) throws SQLException {
     if (_logger.isDebugEnabled()) {

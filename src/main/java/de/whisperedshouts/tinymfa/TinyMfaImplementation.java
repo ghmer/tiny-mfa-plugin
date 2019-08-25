@@ -16,13 +16,11 @@ import javax.crypto.spec.SecretKeySpec;
 import org.apache.commons.codec.binary.Base32;
 import org.apache.log4j.Logger;
 
-import sailpoint.tools.GeneralException;
-
 /**
  * This is an implementation of a time based one time pad (totp)
  * 
  * 
- * @author Mario Enrico Ragucci <mario@whisperedshouts.de>
+ * @author Mario Enrico Ragucci, mario@whisperedshouts.de
  *
  */
 public class TinyMfaImplementation {
@@ -104,9 +102,9 @@ public class TinyMfaImplementation {
    * @param base32SecretKey
    *          the base32 encoded secretKey
    * @return the current valid token for this key
-   * @throws GeneralException
+   * @throws Exception when we hit an issue
    */
-  public static int generateValidToken(Long message, String base32SecretKey) throws GeneralException {
+  public static int generateValidToken(Long message, String base32SecretKey) throws Exception {
     if(_logger.isTraceEnabled()) {
       _logger.trace(String.format("ENTERING method %s(message %s, base32SecretKey %s)", "generateValidToken", message, base32SecretKey));
     } else if (_logger.isDebugEnabled()) {
@@ -151,7 +149,7 @@ public class TinyMfaImplementation {
 
     } catch (InvalidKeyException | SignatureException | NoSuchAlgorithmException e) {
       _logger.error(e.getMessage(), e);
-      throw new GeneralException(e.getMessage());
+      throw new Exception(e.getMessage());
     }
 
     if(_logger.isTraceEnabled()) {
@@ -165,7 +163,7 @@ public class TinyMfaImplementation {
   /**
    * returns a message based on a "corrected timestamp" This method will get the
    * current system time (Milliseconds since 1970), then remove the seconds
-   * elapsed since the last half minute (i.E. 34 -> 30). Last, we divide this by
+   * elapsed since the last half minute (i.E. 34 becomes 30). Last, we divide this by
    * 30.
    * 
    * @return the message

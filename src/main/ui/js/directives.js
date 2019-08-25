@@ -59,5 +59,16 @@
                     'ui/partials/directives/qrcodeDirective.html')
         };
     });
+    
+    app.directive('tinyMfaAuditTable', function() {
+        return {
+            controller : 'AdminController',
+            controllerAs : 'controller',
+            restrict : 'E',
+            replace : true,
+            templateUrl : PluginHelper.getPluginFileUrl('tiny_mfa_plugin',
+                    'ui/partials/directives/auditTableDirective.html')
+        };
+    });
 
 }());

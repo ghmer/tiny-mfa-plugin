@@ -37,7 +37,7 @@ import sailpoint.tools.GeneralException;
  * - To supply the identity with a proper otpauth url (to be used in QRCodes) 
  * - To serve as a backend to verify tokens
  * 
- * @author Mario Enrico Ragucci <mario@whisperedshouts.de>
+ * @author Mario Enrico Ragucci, mario@whisperedshouts.de
  *
  */
 @Path("tiny-mfa")
@@ -62,7 +62,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
 
   // insert a new account into the database. This happens on first usage of the
   // plugin
-  public static final String SQL_CREATE_NEW_ACCOUNT_QUERY = "INSERT INTO MFA_ACCOUNTS(ACCOUNT_NAME, USERPASSWORD, ISENCRYPTED, ISDISABLED) VALUES(?,?,?,?)";
+  public static final String SQL_CREATE_NEW_ACCOUNT_QUERY = "INSERT INTO MFA_ACCOUNTS(ACCOUNT_NAME, USERPASSWORD, ISDISABLED) VALUES(?,?,?)";
 
   // insert a new validation attempt into the database
   public static final String SQL_INSERT_VALIDATION_ATTEMPT = "INSERT INTO MFA_VALIDATION_ATTEMPTS(ACCESS_TIME,CTS,ACCOUNT_NAME,ACCOUNT_STATUS,SUCCEEDED) VALUES(?,?,?,?,?)";
@@ -77,7 +77,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
   public static final String SQL_SELECT_ACCOUNT = "SELECT ID, ACCOUNT_NAME, ISENCRYPTED, ISDISABLED FROM MFA_ACCOUNTS WHERE ACCOUNT_NAME=?";
 
   // select all account attributes
-  public static final String SQL_SELECT_ALL_ACCOUNTS = "SELECT ID, ACCOUNT_NAME, ISENCRYPTED, ISDISABLED FROM MFA_ACCOUNTS";
+  public static final String SQL_SELECT_ALL_ACCOUNTS = "SELECT ID, ACCOUNT_NAME, ISDISABLED FROM MFA_ACCOUNTS";
 
   // select audit trail
   public static final String SQL_SELECT_AUDIT = "SELECT ID, ACCESS_TIME, CTS, ACCOUNT_NAME, ACCOUNT_STATUS, SUCCEEDED FROM MFA_VALIDATION_ATTEMPTS ORDER BY ID DESC";
@@ -571,7 +571,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
 
           // log the attempt
           insertValidationAttemptToDb(identityName, currentUnixTime, isDisabled, isAuthenticated);
-        } catch (GeneralException | SQLException e) {
+        } catch (Exception e) {
           _logger.error(e.getMessage());
         }
       } else {
@@ -615,8 +615,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
 
     prepStatement.setString(1, identityName);
     prepStatement.setString(2, encryptedPassword);
-    prepStatement.setString(3, "true");  
-    prepStatement.setString(4, "false");
+    prepStatement.setString(3, "false");
 
     int resultCode = prepStatement.executeUpdate();
     if (resultCode != 0) {
@@ -659,7 +658,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
     prepStatement.setDate(1, new java.sql.Date(new java.util.Date().getTime()));
     prepStatement.setLong(2, cts);
     prepStatement.setString(3, identityName);
-    prepStatement.setString(4, (isDisabled) ? "active" : "inactive");
+    prepStatement.setString(4, (!isDisabled) ? "active" : "inactive");
     prepStatement.setBoolean(5, succeeded);
 
     int resultCode = prepStatement.executeUpdate();
