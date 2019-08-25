@@ -158,32 +158,33 @@
   app.controller('AdminController', ['$scope', '$http', '$timeout', function($scope, $http, $timeout) {
     $scope.headline     = 'Tiny Multifactor Authentication - Admin Area';
     $scope.currentPage  = 1;
-    $scope.numLimit     = 10;
+    $scope.numberLimit     = 10;
     $scope.start        = 0;
     $scope.maxNumber    = 100;
     $scope.validations  = [];
+    $scope.numberLimits = [5,10,25,50,100];
 
-    $scope.$watch('numLimit',function(newVal){
+    $scope.$watch('numberLimit',function(newVal){
       if(newVal){
-        $scope.pages=Math.ceil($scope.validations.length/$scope.numLimit);
+        $scope.pages=Math.ceil($scope.validations.length/$scope.numberLimit);
       }
     });
 
     $scope.$watch('maxNumber',function(newVal){
       if(newVal){
         $scope.getValidationAttempts($scope.maxNumber);
-        $scope.pages=Math.ceil($scope.validations.length/$scope.numLimit);
+        $scope.pages=Math.ceil($scope.validations.length/$scope.numberLimit);
       }
     });
 
     $scope.$watch('validations',function(newVal){
       if(newVal){
-        $scope.pages=Math.ceil($scope.validations.length/$scope.numLimit);
+        $scope.pages=Math.ceil($scope.validations.length/$scope.numberLimit);
       }
     });
 
     $scope.hideNext=function(){
-      if(($scope.start + $scope.numLimit) < $scope.validations.length){
+      if(($scope.start + $scope.numberLimit) < $scope.validations.length){
         return false;
       }
       else 
@@ -201,7 +202,7 @@
     $scope.nextPage=function(){
       console.log("next pages");
       $scope.currentPage++;
-      $scope.start=$scope.start+ $scope.numLimit;
+      $scope.start=$scope.start+ $scope.numberLimit;
       console.log( $scope.start)
     };
 
@@ -210,7 +211,7 @@
         $scope.currentPage--;
       }
       console.log("next pages");
-      $scope.start=$scope.start - $scope.numLimit;
+      $scope.start=$scope.start - $scope.numberLimit;
       console.log( $scope.start)
     };
 
