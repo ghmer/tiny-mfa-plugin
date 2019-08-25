@@ -1,17 +1,16 @@
 /* app css stylesheet */
-
 #modifyTable {
-	font-size: 1.3em;
+  font-size: 1.3em;
 }
 
 /* Set height of the grid so .sidenav can be 100% (adjust if needed) */
 .row.content {
-	height: auto;
+  height: auto;
 }
 
 .container-fluid-shifted {
-	padding-left: 250px;
-	padding-top: 50px;
+  padding-left: 250px;
+  padding-top: 50px;
 }
 
 ol, ol li {

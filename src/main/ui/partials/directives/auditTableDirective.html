@@ -1,10 +1,12 @@
 <div id="tinyMfaAuditTable">
   <h4>Validation attempts</h4>
   <p>the following table contains all validation attempts.</p>
-  <br />
-  <span>Number of records to fetch:&nbsp;<input data-ng-model="maxNumber" type="number" data-ng-init="10"></span>
-  <span>Number of records per page:&nbsp;<input data-ng-model="numLimit"  type="number" data-ng-init="5"><br /></span>
-  <table class="table table table-striped table-hover table-condensed" >
+  <br /> <span>Number of records to fetch:&nbsp;<input
+    data-ng-model="maxNumber" type="number" data-ng-init="10"></span> <span>Number
+    of records per page:&nbsp;<input data-ng-model="numLimit"
+    type="number" data-ng-init="5"><br />
+  </span>
+  <table class="table table table-striped table-hover table-condensed">
     <thead>
       <tr>
         <th>Audit ID</th>
@@ -17,14 +19,21 @@
     </thead>
     <tbody>
       <tr>
-        <td><input ng-model="searchtext.id" type="text" placeholder="id filter"></td>
-        <td><input ng-model="searchtext.account" type="text" placeholder="account filter"></td>
-        <td><input ng-model="searchtext.status" type="text" placeholder="status filter"></td>
-        <td><input ng-model="searchtext.accessTime" type="text" placeholder="access time filter"></td>
-        <td><input ng-model="searchtext.cts" type="text" placeholder="cts filter"></td>
-        <td><input ng-model="searchtext.succeeded" type="text" placeholder="true or false"></td>
+        <td><input ng-model="searchtext.id" type="text"
+          placeholder="id filter"></td>
+        <td><input ng-model="searchtext.account" type="text"
+          placeholder="account filter"></td>
+        <td><input ng-model="searchtext.status" type="text"
+          placeholder="status filter"></td>
+        <td><input ng-model="searchtext.accessTime" type="text"
+          placeholder="access time filter"></td>
+        <td><input ng-model="searchtext.cts" type="text"
+          placeholder="cts filter"></td>
+        <td><input ng-model="searchtext.succeeded" type="text"
+          placeholder="true or false"></td>
       </tr>
-      <tr data-ng-repeat="attempt in validations | limitTo:numLimit:start | filter:searchtext">
+      <tr
+        data-ng-repeat="attempt in validations | limitTo:numLimit:start | filter:searchtext">
         <td>{{attempt.id}}</td>
         <td>{{attempt.account}}</td>
         <td>{{attempt.status}}</td>
@@ -33,13 +42,14 @@
         <td>{{attempt.succeeded}}</td>
       </tr>
       <tr>
-        <td colspan="5">
-          <span style="padding:5px">{{maxNumber}} records fetched, {{numLimit}} records per page</span>
-          <span style='text-align: center'>Page# {{currentPage}} of {{pages}}</span> 
-        </td>
-        <td>
-          <span style="float:right;padding:5px"><a data-ng-hide="hidePrev()" data-ng-click="PrevPage()">Prev</a></span>
-          <span style="float:right;padding:5px"><a data-ng-hide="hideNext()" data-ng-click="nextPage()">Next</a></span>
+        <td colspan="5"><span style="padding: 5px">{{maxNumber}}
+            records fetched, {{numLimit}} records per page</span> <span
+          style='text-align: center'>Page# {{currentPage}} of
+            {{pages}}</span></td>
+        <td><span style="float: right; padding: 5px"><a
+            data-ng-hide="hidePrev()" data-ng-click="PrevPage()">Prev</a></span>
+          <span style="float: right; padding: 5px"><a
+            data-ng-hide="hideNext()" data-ng-click="nextPage()">Next</a></span>
         </td>
       </tr>
     </tbody>
