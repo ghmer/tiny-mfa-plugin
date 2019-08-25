@@ -167,13 +167,13 @@ public class TinyMfaRestInterface extends BasePluginResource {
       prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_SELECT_ACCOUNT);
       prepStatement.setString(1, identityName);
 
-      ResultSet rs = prepStatement.executeQuery();
-      while (rs.next()) {
-        Map<String, Object> accountObject = TinyMfaUtil.buildAccountObjectMap(rs);
+      ResultSet resultSet = prepStatement.executeQuery();
+      while (resultSet.next()) {
+        Map<String, Object> accountObject = TinyMfaUtil.buildAccountObjectMap(resultSet);
         result.add(accountObject);
       }
 
-      rs.close();
+      resultSet.close();
       prepStatement.close();
     } catch (SQLException e) {
       _logger.error(e.getMessage());
@@ -217,13 +217,13 @@ public class TinyMfaRestInterface extends BasePluginResource {
       connection = getConnection();
       prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_SELECT_ALL_ACCOUNTS);
 
-      ResultSet rs = prepStatement.executeQuery();
-      while (rs.next()) {
-        Map<String, Object> accountObject = TinyMfaUtil.buildAccountObjectMap(rs);
+      ResultSet resultSet = prepStatement.executeQuery();
+      while (resultSet.next()) {
+        Map<String, Object> accountObject = TinyMfaUtil.buildAccountObjectMap(resultSet);
         result.add(accountObject);
       }
 
-      rs.close();
+      resultSet.close();
       prepStatement.close();
     } catch (SQLException e) {
       _logger.error(e.getMessage());
@@ -293,13 +293,13 @@ public class TinyMfaRestInterface extends BasePluginResource {
     try {
       connection = getConnection();
       prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_SELECT_AUDIT);
-      ResultSet rs = prepStatement.executeQuery();
-      while (rs.next()) {
-        Map<String, Object> auditObject = TinyMfaUtil.buildAuditObjectMap(rs);
+      ResultSet resultSet = prepStatement.executeQuery();
+      while (resultSet.next()) {
+        Map<String, Object> auditObject = TinyMfaUtil.buildAuditObjectMap(resultSet);
         result.add(auditObject);
       }
 
-      rs.close();
+      resultSet.close();
       prepStatement.close();
     } catch (SQLException e) {
       _logger.error(e.getMessage());
@@ -383,14 +383,14 @@ public class TinyMfaRestInterface extends BasePluginResource {
     try {
       connection = getConnection();
       prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_SELECT_AUDIT);
-      ResultSet rs = prepStatement.executeQuery();
-      while (rs.next() && count < limit) {
-        Map<String, Object> auditObject = TinyMfaUtil.buildAuditObjectMap(rs);
+      ResultSet resultSet = prepStatement.executeQuery();
+      while (resultSet.next() && count < limit) {
+        Map<String, Object> auditObject = TinyMfaUtil.buildAuditObjectMap(resultSet);
         result.add(auditObject);
         count++;
       }
 
-      rs.close();
+      resultSet.close();
       prepStatement.close();
     } catch (SQLException e) {
       _logger.error(e.getMessage());
@@ -699,12 +699,12 @@ public class TinyMfaRestInterface extends BasePluginResource {
 
     prepStatement.setString(1, identityName);
 
-    ResultSet rs = prepStatement.executeQuery();
-    if (rs.next()) {
-      isDisabled = rs.getBoolean(1);
+    ResultSet resultSet = prepStatement.executeQuery();
+    if (resultSet.next()) {
+      isDisabled = resultSet.getBoolean(1);
     }
 
-    rs.close();
+    resultSet.close();
     prepStatement.close();
     connection.close();
 
@@ -740,12 +740,12 @@ public class TinyMfaRestInterface extends BasePluginResource {
     prepStatement.setLong(2, cts);
     prepStatement.setBoolean(3, false);
 
-    ResultSet rs = prepStatement.executeQuery();
-    if (rs.next()) {
-      result = rs.getInt(1);
+    ResultSet resultSet = prepStatement.executeQuery();
+    if (resultSet.next()) {
+      result = resultSet.getInt(1);
     }
 
-    rs.close();
+    resultSet.close();
     prepStatement.close();
     connection.close();
 
@@ -778,13 +778,13 @@ public class TinyMfaRestInterface extends BasePluginResource {
 
     prepStatement.setString(1, identityName);
 
-    ResultSet rs = prepStatement.executeQuery();
-    if (rs.next()) {
-      String encryptedPassword = rs.getString(1);
+    ResultSet resultSet = prepStatement.executeQuery();
+    if (resultSet.next()) {
+      String encryptedPassword = resultSet.getString(1);
       result = context.decrypt(encryptedPassword);
     }
 
-    rs.close();
+    resultSet.close();
     prepStatement.close();
     connection.close();
 
