@@ -598,6 +598,9 @@ public class TinyMfaRestInterface extends BasePluginResource {
     Boolean isAuthenticated = false;
     Boolean isEnabled       = true;
     
+    // get the current timestamp to generate the token
+    long currentUnixTime    = TinyMfaImplementation.getValidMessageBySystemTimestamp();
+    
     // check whether the account is disabled
     try {
       isEnabled = isAccountEnabled(identityName, context);
@@ -609,9 +612,6 @@ public class TinyMfaRestInterface extends BasePluginResource {
     if (isEnabled) {
       // get the maximum attempts from the plugin settings
       int maximumAllowedValidationAttempts = PluginBaseHelper.getSettingInt(getPluginName(), "maxAttempts");
-
-      // get the current timestamp to generate the token
-      long currentUnixTime = TinyMfaImplementation.getValidMessageBySystemTimestamp();
 
       // check for validation attempts, initialize with safety in mind
       int attemptsForTimestamp = maximumAllowedValidationAttempts + 1;
@@ -638,8 +638,6 @@ public class TinyMfaRestInterface extends BasePluginResource {
           // if codes match, you are welcome
           isAuthenticated     = (generatedToken == sanitizedToken);
 
-          // log the attempt
-          insertValidationAttemptToDb(identityName, currentUnixTime, isEnabled, isAuthenticated);
         } catch (Exception e) {
           _logger.error(e.getMessage());
         }
@@ -647,6 +645,13 @@ public class TinyMfaRestInterface extends BasePluginResource {
         _logger.warn(String.format("number attempts (%s) exceeded limit %s for identity %s", attemptsForTimestamp,
             maximumAllowedValidationAttempts, identityName));
       }
+    }
+    
+    // log the attempt
+    try {
+      insertValidationAttemptToDb(identityName, currentUnixTime, isEnabled, isAuthenticated);
+    } catch (GeneralException | SQLException e) {
+      _logger.error(e.getMessage());
     }
 
     if (_logger.isDebugEnabled()) {
