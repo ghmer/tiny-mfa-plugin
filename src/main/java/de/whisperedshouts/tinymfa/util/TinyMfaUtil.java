@@ -42,9 +42,12 @@ public class TinyMfaUtil {
  
   /**
    * builds a Map containing account information from a resultSet
-   * @param resultSet the resultset to get the information form
+   * 
+   * @param resultSet
+   *          the resultset to get the information form
    * @return the Map containing the account information
-   * @throws SQLException when there was an error with the result set
+   * @throws SQLException
+   *           when there was an error with the result set
    */
   public static Map<String, Object> buildAccountObjectMap(ResultSet resultSet) throws SQLException {
     if (_logger.isDebugEnabled()) {
@@ -101,7 +104,9 @@ public class TinyMfaUtil {
   
   /**
    * formats the accesstime to a String object
-   * @param accessTime the long representing the date
+   * 
+   * @param accessTime
+   *          the long representing the date
    * @return a formatted String
    */
   private static Object formatAccessTime(long accessTime) {
@@ -109,7 +114,7 @@ public class TinyMfaUtil {
       _logger.debug(
           String.format("ENTERING method %s(accessTime %s)", "formatAccessTime", accessTime));
     }
-    String result         = String.valueOf(accessTime);
+    String result = String.valueOf(accessTime);
     try {
       SimpleDateFormat sdf  = new SimpleDateFormat(TinyMfaUtil.DATE_FORMAT);
       Date accessTimeDate   = new Date(accessTime);
@@ -151,12 +156,11 @@ public class TinyMfaUtil {
       hintMap.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.L);
 
       QRCodeWriter qrCodeWriter = new QRCodeWriter();
-      BitMatrix byteMatrix = qrCodeWriter.encode(qrCodePayload, BarcodeFormat.QR_CODE, width,
-          height, hintMap);
+      BitMatrix mitMatrix       = qrCodeWriter.encode(qrCodePayload, BarcodeFormat.QR_CODE, width, height, hintMap);
       
-      BufferedImage image = generateQrcodeGraphics(width, height, byteMatrix);
+      BufferedImage image = TinyMfaUtil.generateQrcodeGraphics(width, height, mitMatrix);
       
-      qrCode = encodeImageToBase64String(fileType, image);
+      qrCode = TinyMfaUtil.encodeImageToBase64String(fileType, image);
       
 
     } catch (IOException e) {
@@ -192,13 +196,13 @@ public class TinyMfaUtil {
       _logger.debug(String.format("ENTERING method %s(fileType %s, image %s)", "encodeImageToBase64String", fileType, image));
     }
     String result  = null;
-    ByteArrayOutputStream os = new ByteArrayOutputStream();
-    OutputStream base64OutputStream = Base64.getEncoder().wrap(os);
+    ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+    OutputStream base64OutputStream = Base64.getEncoder().wrap(outStream);
     ImageIO.write(image, fileType, base64OutputStream);
  
     base64OutputStream.close();
-    result = os.toString();
-    os.close();
+    result = outStream.toString();
+    outStream.close();
     
     if (_logger.isDebugEnabled()) {
       if(_logger.isTraceEnabled()) {
