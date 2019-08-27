@@ -7,9 +7,6 @@
 	</formats>
   <dependencySets>
     <dependencySet>
-      <includes>
-        <include>*.jar</include>
-      </includes>
       <outputDirectory>/jars</outputDirectory>
     </dependencySet>
   </dependencySets>
