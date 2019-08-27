@@ -3,14 +3,31 @@
  */
 package de.whisperedshouts.tinymfa.util;
 
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
+import java.util.Base64;
 import java.util.Date;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.imageio.ImageIO;
+
 import org.apache.log4j.Logger;
+
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.EncodeHintType;
+import com.google.zxing.WriterException;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 
 
 /**
@@ -50,9 +67,12 @@ public class TinyMfaUtil {
   
   /**
    * builds a Map with audit information
-   * @param resultSet the resultset to get the information from
+   * 
+   * @param resultSet
+   *          the resultset to get the information from
    * @return Map containing the audit information
-   * @throws SQLException when we hit an issue with the result set
+   * @throws SQLException
+   *           when we hit an issue with the result set
    */
   public static Map<String, Object> buildAuditObjectMap(ResultSet resultSet) throws SQLException {
     if (_logger.isDebugEnabled()) {
@@ -79,6 +99,11 @@ public class TinyMfaUtil {
     return auditObject;
   }
   
+  /**
+   * formats the accesstime to a String object
+   * @param accessTime the long representing the date
+   * @return a formatted String
+   */
   private static Object formatAccessTime(long accessTime) {
     if (_logger.isDebugEnabled()) {
       _logger.debug(
@@ -98,6 +123,137 @@ public class TinyMfaUtil {
       _logger.debug(String.format("LEAVING method %s (returns: %s)", "formatAccessTime", result));
     }
     return result;
+  }
+  
+  /**
+   * Generates a QRCode image in PNG format with the supplied payload, then
+   * encodes it to base64
+   * 
+   * @param qrCodePayload
+   *          the payload that the QRCode shall carry
+   * @return the base64 encoded QRCode image.png
+   */
+  public static String generateBase64EncodedQrcode(String qrCodePayload) {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("ENTERING method %s(qrCodePayload %s)", "generateBase64EncodedQrcode", qrCodePayload));
+    }
+    String qrCode   = null;
+    int width       = 300;
+    int height      = 300;
+    String fileType = "png";
+    
+    try {
+      Map<EncodeHintType, Object> hintMap = new EnumMap<EncodeHintType, Object>(EncodeHintType.class);
+      hintMap.put(EncodeHintType.CHARACTER_SET, "UTF-8");
+      
+      // Now with zxing version 3.2.1 you could change border size (white border size to just 1)
+      hintMap.put(EncodeHintType.MARGIN, 1); // default = 4
+      hintMap.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.L);
+
+      QRCodeWriter qrCodeWriter = new QRCodeWriter();
+      BitMatrix byteMatrix = qrCodeWriter.encode(qrCodePayload, BarcodeFormat.QR_CODE, width,
+          height, hintMap);
+      
+      BufferedImage image = generateQrcodeGraphics(width, height, byteMatrix);
+      
+      qrCode = encodeImageToBase64String(fileType, image);
+      
+
+    } catch (IOException e) {
+      _logger.error(e.getMessage());
+    } catch (WriterException e) {
+      _logger.error(e.getMessage());
+    }
+    
+    if (_logger.isDebugEnabled()) {
+      if(_logger.isTraceEnabled()) {
+        _logger.debug(String.format("LEAVING method %s (returns: %s)", "generateBase64EncodedQrcode", qrCode));
+      } else {
+        _logger.debug(String.format("LEAVING method %s (returns: %s)", "generateBase64EncodedQrcode", "*** (masked)"));
+      }
+    } 
+    return qrCode;
+  }
+
+  /**
+   * encodes a BufferedImage to base64
+   * 
+   * @param fileType
+   *          type to use when writing the image (i.E. png)
+   * @param image
+   *          the BufferedImage to encode
+   * @throws IOException
+   *           when there was an issue while converting the Image
+   * @return the base64 encoded representation of the image
+   * @throws IOException
+   */
+  public static String encodeImageToBase64String(String fileType, BufferedImage image) throws IOException {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("ENTERING method %s(fileType %s, image %s)", "encodeImageToBase64String", fileType, image));
+    }
+    String result  = null;
+    ByteArrayOutputStream os = new ByteArrayOutputStream();
+    OutputStream base64OutputStream = Base64.getEncoder().wrap(os);
+    ImageIO.write(image, fileType, base64OutputStream);
+ 
+    base64OutputStream.close();
+    result = os.toString();
+    os.close();
+    
+    if (_logger.isDebugEnabled()) {
+      if(_logger.isTraceEnabled()) {
+        _logger.debug(String.format("LEAVING method %s (returns: %s)", "encodeImageToBase64String", result));
+      } else {
+        _logger.debug(String.format("LEAVING method %s (returns: %s)", "encodeImageToBase64String", "*** (masked)"));
+      }
+    }
+    return result;
+  }
+
+  /**
+   * generates a QRCode image with the supplied width, height and Bitmatrix
+   * 
+   * @param width
+   *          the width of the QRCode
+   * @param height
+   *          the height of the QRCode
+   * @param bitMatrix
+   *          the bitMatrix representing the QRCode's payload
+   * @return
+   */
+  public static BufferedImage generateQrcodeGraphics(int width, int height, BitMatrix bitMatrix) {
+    if (_logger.isDebugEnabled()) {
+      if(_logger.isTraceEnabled()) {
+        _logger.debug(String.format("ENTERING method %s(width %s, height %s, bitMatrix %s)", "generateQrcodeGraphics", width, height, bitMatrix));
+      } else {
+        _logger.debug(String.format("ENTERING method %s(width %s, height %s, bitMatrix %s)", "generateQrcodeGraphics", width, height, "*** (masked)"));
+      }
+    }
+    
+    BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+    image.createGraphics();
+
+    Graphics2D graphics = (Graphics2D) image.getGraphics();
+    graphics.setColor(Color.WHITE);
+    graphics.fillRect(0, 0, width, height);
+    graphics.setColor(Color.BLACK);
+
+    for (int xPosition = 0; xPosition < width; xPosition++) {
+      for (int yPosition = 0; yPosition < height; yPosition++) {
+        if (bitMatrix.get(xPosition, yPosition)) {
+          graphics.fillRect(xPosition, yPosition, 1, 1);
+        }
+      }
+    }
+    
+    if (_logger.isDebugEnabled()) {
+      if(_logger.isTraceEnabled()) {
+        _logger.debug(String.format("LEAVING method %s (returns: %s)", "generateQrcodeGraphics", image));
+      } else {
+        _logger.debug(String.format("LEAVING method %s (returns: %s)", "generateQrcodeGraphics", "*** (masked)"));
+      }
+    }
+    return image;
   }
 
   /**

@@ -86,8 +86,8 @@
           }, 3000);
         } else {
           //generate qrcode 
-          var qrCodeObject 	 = kjua({text: response.data});
-          $scope.qrCode 		 = qrCodeObject.src;
+          var qrCodeObject 	 = response.data;
+          $scope.qrCode 		 = "data:image/png;base64, " + qrCodeObject;
           $scope.qrCodeError 	 = null;
         }
       }, function myError(response) {

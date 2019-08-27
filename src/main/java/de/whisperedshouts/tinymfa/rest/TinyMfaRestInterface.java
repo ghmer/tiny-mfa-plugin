@@ -432,8 +432,10 @@ public class TinyMfaRestInterface extends BasePluginResource {
     if (_logger.isDebugEnabled()) {
       _logger.debug(String.format("ENTERING method %s()", "getQrCodeData"));
     }
+    
     boolean hasError      = false;
     String qrCodeUrl      = null;
+    String qrCodeBase64   = null;
     String identityName   = null;
     String sanitizedName  = null;
     String issuer         = PluginBaseHelper.getSettingString(getPluginName(), "issuerDomain");
@@ -461,7 +463,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
         // trim the password - IOS orders us to do so!
         userPassword = userPassword.substring(0, userPassword.indexOf("="));
         qrCodeUrl    = String.format(QR_CODE_FORMATSTRING, issuer, sanitizedName, userPassword);
-
+        qrCodeBase64 = TinyMfaUtil.generateBase64EncodedQrcode(qrCodeUrl);
       } catch (Exception e) {
         _logger.error(e.getMessage());
         hasError = true;
@@ -470,10 +472,10 @@ public class TinyMfaRestInterface extends BasePluginResource {
     }
 
     if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "getQrCodeData", qrCodeUrl));
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "getQrCodeData", qrCodeBase64));
     }
     // return either an error or the qrCodeUrl
-    return (hasError) ? Response.serverError().build() : Response.ok().entity(qrCodeUrl).build();
+    return (hasError) ? Response.serverError().build() : Response.ok().entity(qrCodeBase64).build();
   }
 
   /**
