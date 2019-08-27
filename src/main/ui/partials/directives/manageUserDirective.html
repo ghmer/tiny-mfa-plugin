@@ -1,0 +1,37 @@
+<div id="tinyMfaManageUserDiv">
+  <h4>User Management</h4>
+  <p>Search a user to manage using the field below.</p>
+  <br />
+  <p>
+  <input type="text" name="searchAccountField" data-ng-model="accountName" class="searchaccountfield" required />
+  <button ng-click="searchAccount()">search</button>
+  </p>
+  <div data-ng-show="successMessage" class="alert alert-success">
+    <span data-ng-show="successMessage" data-ng-cloak>{{successMessage}}</span>
+  </div>
+  <div data-ng-show="errorMessage" class="alert alert-danger">
+    <span data-ng-show="errorMessage" data-ng-cloak>{{errorMessage}}</span>
+  </div>
+  <br />
+  <div id="tinyMfaManageUserTableDiv" data-ng-show="manageUserInfo">
+    <table class="table table table-striped table-hover table-condensed">
+      <thead>
+        <tr>
+          <th>TinyMFA ID</th>
+          <th>identity name</th>
+          <th>enabled</th>
+          <th>actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          data-ng-repeat="account in manageUserInfo">
+          <td>{{account.id}}</td>
+          <td>{{account.account}}</td>
+          <td>{{account.enabled}}</td>
+          <td><button ng-click="enableAccount(account.account, !account.enabled)">{{account.enabled ? 'disable' : 'enable'}}</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

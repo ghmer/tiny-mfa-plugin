@@ -55,12 +55,12 @@ public class TinyMfaUtil {
     }
     String id           = resultSet.getString(1);
     String accountName  = resultSet.getString(2);
-    boolean isDisabled  = resultSet.getBoolean(3);
+    boolean isEnabled   = resultSet.getBoolean(3);
 
     Map<String, Object> accountObject = new HashMap<>();
     accountObject.put("id", id);
     accountObject.put("account", accountName);
-    accountObject.put("disabled", isDisabled);
+    accountObject.put("enabled", isEnabled);
     
     if (_logger.isDebugEnabled()) {
       _logger.debug(String.format("LEAVING method %s (returns: %s)", "buildAccountObjectMap", accountObject));
@@ -85,13 +85,13 @@ public class TinyMfaUtil {
     long accessTime     = resultSet.getLong(2);
     String cts          = resultSet.getString(3);
     String accountName  = resultSet.getString(4);
-    String status       = resultSet.getString(5);
+    boolean isEnabled   = resultSet.getBoolean(5);
     boolean succeeded   = resultSet.getBoolean(6);
 
     Map<String, Object> auditObject = new HashMap<>();
     auditObject.put("id", id);
     auditObject.put("account", accountName);
-    auditObject.put("status", status);
+    auditObject.put("status", isEnabled);
     auditObject.put("accessTime", formatAccessTime(accessTime));
     auditObject.put("cts", cts);
     auditObject.put("succeeded", succeeded);
@@ -129,18 +129,22 @@ public class TinyMfaUtil {
     }
     return result;
   }
-  
+
   /**
    * Generates a QRCode image in PNG format with the supplied payload, then
    * encodes it to base64
    * 
    * @param qrCodePayload
    *          the payload that the QRCode shall carry
+   * @param bgColorHex
+   *          the background color of the QECode. Hexadecimal representation
+   * @param fgColorHex
+   *          the foreground color of the QECode. Hexadecimal representation
    * @return the base64 encoded QRCode image.png
    */
-  public static String generateBase64EncodedQrcode(String qrCodePayload) {
+  public static String generateBase64EncodedQrcode(String qrCodePayload, String bgColorHex, String fgColorHex) {
     if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("ENTERING method %s(qrCodePayload %s)", "generateBase64EncodedQrcode", qrCodePayload));
+      _logger.debug(String.format("ENTERING method %s(qrCodePayload %s, bgColorHex %s, fgColorHex %s)", "generateBase64EncodedQrcode", qrCodePayload, bgColorHex, fgColorHex));
     }
     String qrCode   = null;
     int width       = 300;
@@ -158,7 +162,7 @@ public class TinyMfaUtil {
       QRCodeWriter qrCodeWriter = new QRCodeWriter();
       BitMatrix mitMatrix       = qrCodeWriter.encode(qrCodePayload, BarcodeFormat.QR_CODE, width, height, hintMap);
       
-      BufferedImage image = TinyMfaUtil.generateQrcodeGraphics(width, height, mitMatrix);
+      BufferedImage image = TinyMfaUtil.generateQrcodeGraphics(width, height, bgColorHex, fgColorHex, mitMatrix);
       
       qrCode = TinyMfaUtil.encodeImageToBase64String(fileType, image);
       
@@ -189,7 +193,7 @@ public class TinyMfaUtil {
    * @throws IOException
    *           when there was an issue while converting the Image
    * @return the base64 encoded representation of the image
-   * @throws IOException
+   * @throws IOException when there was an issue
    */
   public static String encodeImageToBase64String(String fileType, BufferedImage image) throws IOException {
     if (_logger.isDebugEnabled()) {
@@ -221,16 +225,20 @@ public class TinyMfaUtil {
    *          the width of the QRCode
    * @param height
    *          the height of the QRCode
+   * @param bgColorHex
+   *          the background color of the QECode. Hexadecimal representation
+   * @param fgColorHex
+   *          the foreground color of the QECode. Hexadecimal representation
    * @param bitMatrix
    *          the bitMatrix representing the QRCode's payload
-   * @return
+   * @return a BufferedImage containing the QRCode
    */
-  public static BufferedImage generateQrcodeGraphics(int width, int height, BitMatrix bitMatrix) {
+  public static BufferedImage generateQrcodeGraphics(int width, int height, String bgColorHex, String fgColorHex, BitMatrix bitMatrix) {
     if (_logger.isDebugEnabled()) {
       if(_logger.isTraceEnabled()) {
-        _logger.debug(String.format("ENTERING method %s(width %s, height %s, bitMatrix %s)", "generateQrcodeGraphics", width, height, bitMatrix));
+        _logger.debug(String.format("ENTERING method %s(width %s, height %s, bgColorHex %s, fgColorHex %s, bitMatrix %s)", "generateQrcodeGraphics", width, height, bgColorHex, fgColorHex, bitMatrix));
       } else {
-        _logger.debug(String.format("ENTERING method %s(width %s, height %s, bitMatrix %s)", "generateQrcodeGraphics", width, height, "*** (masked)"));
+        _logger.debug(String.format("ENTERING method %s(width %s, height %s, bgColorHex %s, fgColorHex %s, bitMatrix %s)", "generateQrcodeGraphics", width, height, bgColorHex, fgColorHex, "*** (masked)"));
       }
     }
     
@@ -238,9 +246,9 @@ public class TinyMfaUtil {
     image.createGraphics();
 
     Graphics2D graphics = (Graphics2D) image.getGraphics();
-    graphics.setColor(Color.WHITE);
+    graphics.setColor(Color.decode(bgColorHex));
     graphics.fillRect(0, 0, width, height);
-    graphics.setColor(Color.BLACK);
+    graphics.setColor(Color.decode(fgColorHex));
 
     for (int xPosition = 0; xPosition < width; xPosition++) {
       for (int yPosition = 0; yPosition < height; yPosition++) {

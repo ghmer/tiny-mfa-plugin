@@ -1,32 +1,43 @@
 <?xml version="1.0"?>
 <!DOCTYPE Plugin PUBLIC "sailpoint.dtd" "sailpoint.dtd">
-<Plugin name="tiny_mfa_plugin" displayName="Tiny MFA Plugin" version="3.0" disabled="false" certificationLevel="None" minSystemVersion="7.2" maxSystemVersion="8.0">
+<Plugin name="tiny_mfa_plugin" displayName="Tiny MFA Plugin"
+  version="3.0" disabled="false" certificationLevel="None"
+  minSystemVersion="7.2" maxSystemVersion="8.0">
   <Attributes>
-    <Map>     
-      <entry key="minUpgradableVersion" value="3.0"/>     
+    <Map>
+      <entry key="minUpgradableVersion" value="3.0" />
       <entry key="settings">
         <value>
           <List>
-            <Setting name="issuerDomain"  
-                     dataType="string"  
-                     defaultValue="sailpoint.labs" 
-                     helpText="define the domainname that gets appended to the account. This is for convinience of the user and does not have any effects on token calculation" 
-                     label="issuer domain"/>
-            <Setting name="maxAttempts"   
-                     dataType="int"     
-                     defaultValue="15" 
-                     label="maximum validation attempts"
-                     helpText="how much attempts are allowed for a given timesegment until we don't validate anymore"/>
-            <Setting name="mfaAppIos"
-                     dataType="string"
-                     defaultValue="https://apps.apple.com/app/google-authenticator/id388497605"
-                     label="iOS Appstore Link"
-                     helpText="The link to the appstore page of the MFA tool for iOS. Defaults to Google Authenticator"/>
-            <Setting name="mfaAppAndroid"
-                     dataType="string"
-                     defaultValue="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2"
-                     label="Android Appstore Link"
-                     helpText="The link to the appstore page of the MFA tool for Android. Defaults to Google Authenticator"/>
+            <Setting  name="issuerDomain" 
+                      dataType="string"
+                      defaultValue="sailpoint.labs"
+                      helpText="define the domainname that gets appended to the account. This is for convinience of the user and does not have any effects on token calculation"
+                      label="issuer domain" />
+            <Setting  name="maxAttempts" 
+                      dataType="int"
+                      defaultValue="15" label="maximum validation attempts"
+                      helpText="how much attempts are allowed for a given timesegment until we don't validate anymore" />
+            <Setting  name="mfaAppIos" 
+                      dataType="string"
+                      defaultValue="https://apps.apple.com/app/google-authenticator/id388497605"
+                      label="iOS Appstore Link"
+                      helpText="The link to the appstore page of the MFA tool for iOS. Defaults to Google Authenticator" />
+            <Setting  name="mfaAppAndroid" 
+                      dataType="string"
+                      defaultValue="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2"
+                      label="Android Appstore Link"
+                      helpText="The link to the appstore page of the MFA tool for Android. Defaults to Google Authenticator" />
+            <Setting  name="bgColorHex" 
+                      dataType="string"
+                      defaultValue="#ffffff" 
+                      label="QRCode background color"
+                      helpText="The background color of the generated QRCode. Defaults to white" />
+            <Setting  name="fgColorHex" 
+                      dataType="string"
+                      defaultValue="#011e69" label="QRCode foreground color"
+                      helpText="The foreground color of the generated QRCode. Defaults to SailPoint blue" />
+
           </List>
         </value>
       </entry>
@@ -34,7 +45,7 @@
         <value>
           <FullPage title="Tiny Multifactor-Authentication Plugin" />
         </value>
-      </entry>     
+      </entry>
       <entry key="snippets">
         <value>
           <List>
@@ -45,7 +56,7 @@
             </Snippet>
           </List>
         </value>
-      </entry>      
+      </entry>
       <entry key="restResources">
         <value>
           <List>

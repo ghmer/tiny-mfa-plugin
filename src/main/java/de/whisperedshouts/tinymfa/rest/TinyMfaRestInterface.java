@@ -60,27 +60,29 @@ public class TinyMfaRestInterface extends BasePluginResource {
   // check for failed validation attempts
   public static final String SQL_COUNT_VALIDATION_ATTEMPTS = "SELECT COUNT(*) FROM MFA_VALIDATION_ATTEMPTS WHERE CTS = ? and ACCOUNT_NAME = ? and SUCCEEDED = ?";
 
-  // insert a new account into the database. This happens on first usage of the
-  // plugin
-  public static final String SQL_CREATE_NEW_ACCOUNT_QUERY = "INSERT INTO MFA_ACCOUNTS(ACCOUNT_NAME, USERPASSWORD, ISDISABLED) VALUES(?,?,?)";
+  //insert a new account into the database. This happens on first usage of the  plugin
+   public static final String SQL_CREATE_NEW_ACCOUNT_QUERY = "INSERT INTO MFA_ACCOUNTS(ACCOUNT_NAME, USERPASSWORD, ISENABLED) VALUES(?,?,?)";
+  
+  //update the isDisabled setting of the account
+  public static final String SQL_UPDATE_IS_ENABLED_STATUS = "UPDATE MFA_ACCOUNTS SET ISENABLED=? WHERE ACCOUNT_NAME=?";
 
   // insert a new validation attempt into the database
-  public static final String SQL_INSERT_VALIDATION_ATTEMPT = "INSERT INTO MFA_VALIDATION_ATTEMPTS(ACCESS_TIME,CTS,ACCOUNT_NAME,ACCOUNT_STATUS,SUCCEEDED) VALUES(?,?,?,?,?)";
+  public static final String SQL_INSERT_VALIDATION_ATTEMPT = "INSERT INTO MFA_VALIDATION_ATTEMPTS(ACCESS_TIME,CTS,ACCOUNT_NAME,ACCOUNT_ENABLED,SUCCEEDED) VALUES(?,?,?,?,?)";
 
   // check if user is disabled
-  public static final String SQL_IS_ACCOUNT_DISABLED = "SELECT ISDISABLED FROM MFA_ACCOUNTS WHERE ACCOUNT_NAME=?";
+  public static final String SQL_IS_ACCOUNT_ENABLED = "SELECT ISENABLED FROM MFA_ACCOUNTS WHERE ACCOUNT_NAME=?";
 
   // the SQL query used to retrieve the userkey from the database
   public static final String SQL_RETRIEVE_PASSWORD_QUERY = "SELECT USERPASSWORD FROM MFA_ACCOUNTS WHERE ACCOUNT_NAME=?";
 
-  // select specific account attributes
-  public static final String SQL_SELECT_ACCOUNT = "SELECT ID, ACCOUNT_NAME, ISENCRYPTED, ISDISABLED FROM MFA_ACCOUNTS WHERE ACCOUNT_NAME=?";
-
+  //select specific account attributes
+   public static final String SQL_SELECT_ACCOUNT = "SELECT ID, ACCOUNT_NAME, ISENABLED FROM MFA_ACCOUNTS WHERE ACCOUNT_NAME=?";
+  
   // select all account attributes
-  public static final String SQL_SELECT_ALL_ACCOUNTS = "SELECT ID, ACCOUNT_NAME, ISDISABLED FROM MFA_ACCOUNTS";
+  public static final String SQL_SELECT_ALL_ACCOUNTS = "SELECT ID, ACCOUNT_NAME, ISENABLED FROM MFA_ACCOUNTS";
 
   // select audit trail
-  public static final String SQL_SELECT_AUDIT = "SELECT ID, ACCESS_TIME, CTS, ACCOUNT_NAME, ACCOUNT_STATUS, SUCCEEDED FROM MFA_VALIDATION_ATTEMPTS ORDER BY ID DESC";
+  public static final String SQL_SELECT_AUDIT = "SELECT ID, ACCESS_TIME, CTS, ACCOUNT_NAME, ACCOUNT_ENABLED, SUCCEEDED FROM MFA_VALIDATION_ATTEMPTS ORDER BY ID DESC";
 
   /**
    * activates a token for an identity
@@ -141,6 +143,60 @@ public class TinyMfaRestInterface extends BasePluginResource {
       _logger.debug(String.format("LEAVING method %s (returns: %s)", "activateToken", isAuthenticated));
     }
     return isAuthenticated;
+  }
+  
+  /**
+   * returns the requested account details
+   * 
+   * @param identityName
+   *          the identity to query for
+   * @param enableStatus
+   *          whether the account shall be enabled (true) or disabled (false)
+   * @return a list of all matching accounts
+   */
+  @GET
+  @RequiredRight(value = "TinyMfaPluginAdministrator")
+  @Produces(MediaType.TEXT_PLAIN)
+  @Path("accounts/{identityName}/enable/{enableStatus}")
+  public Response enableAccount(@PathParam("identityName") String identityName, @PathParam("enableStatus") boolean enableStatus) {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("ENTERING method %s(identityName %s, enableStatus %s)", "enableAccount", identityName, enableStatus));
+    }
+    
+    boolean succeeded                = false;
+    Connection connection            = null;
+    PreparedStatement prepStatement  = null;
+    try {
+      connection    = getConnection();
+      prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_UPDATE_IS_ENABLED_STATUS);
+      prepStatement.setBoolean(1, enableStatus);
+      prepStatement.setString(2, identityName);
+
+      int countOfModifiedRows = prepStatement.executeUpdate();
+      if(countOfModifiedRows > 0) {
+        succeeded = true;
+      }
+
+      prepStatement.close();
+    } catch (SQLException e) {
+      _logger.error(e.getMessage());
+    } catch (GeneralException e) {
+      _logger.error(e.getMessage());
+    } finally {
+      if (connection != null) {
+        try {
+          connection.close();
+        } catch (SQLException e) {
+          _logger.error(e.getMessage());
+        }
+      }
+    }
+
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "enableAccount", succeeded));
+    }
+
+    return Response.ok().entity(succeeded).build();
   }
 
   /**
@@ -438,7 +494,14 @@ public class TinyMfaRestInterface extends BasePluginResource {
     String qrCodeBase64   = null;
     String identityName   = null;
     String sanitizedName  = null;
+    String bgColorHex     = PluginBaseHelper.getSettingString(getPluginName(), "bgColorHex");
+    String fgColorHex     = PluginBaseHelper.getSettingString(getPluginName(), "fgColorHex");
     String issuer         = PluginBaseHelper.getSettingString(getPluginName(), "issuerDomain");
+    
+    // check colors. If, for any reasons, these values are empty, initialize with black/white
+    if(bgColorHex == null || bgColorHex.isEmpty()) bgColorHex = "#FFF"; //background is white
+    if(fgColorHex == null || fgColorHex.isEmpty()) bgColorHex = "#000"; //background is black
+    
     try {
       identityName = getLoggedInUserName();
       // sanitize the identityName;
@@ -463,7 +526,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
         // trim the password - IOS orders us to do so!
         userPassword = userPassword.substring(0, userPassword.indexOf("="));
         qrCodeUrl    = String.format(QR_CODE_FORMATSTRING, issuer, sanitizedName, userPassword);
-        qrCodeBase64 = TinyMfaUtil.generateBase64EncodedQrcode(qrCodeUrl);
+        qrCodeBase64 = TinyMfaUtil.generateBase64EncodedQrcode(qrCodeUrl, bgColorHex, fgColorHex);
       } catch (Exception e) {
         _logger.error(e.getMessage());
         hasError = true;
@@ -533,17 +596,17 @@ public class TinyMfaRestInterface extends BasePluginResource {
 
     // that's what we care for
     Boolean isAuthenticated = false;
-    Boolean isDisabled      = true;
+    Boolean isEnabled       = true;
     
     // check whether the account is disabled
     try {
-      isDisabled = isAccountDisabled(identityName, context);
+      isEnabled = isAccountEnabled(identityName, context);
     } catch (GeneralException | SQLException e) {
       _logger.error(e.getMessage());
     }
 
-    // only proceed if the account is not disabled
-    if (!isDisabled) {
+    // only proceed if the account is enabled
+    if (isEnabled) {
       // get the maximum attempts from the plugin settings
       int maximumAllowedValidationAttempts = PluginBaseHelper.getSettingInt(getPluginName(), "maxAttempts");
 
@@ -576,7 +639,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
           isAuthenticated     = (generatedToken == sanitizedToken);
 
           // log the attempt
-          insertValidationAttemptToDb(identityName, currentUnixTime, isDisabled, isAuthenticated);
+          insertValidationAttemptToDb(identityName, currentUnixTime, isEnabled, isAuthenticated);
         } catch (Exception e) {
           _logger.error(e.getMessage());
         }
@@ -621,7 +684,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
 
     prepStatement.setString(1, identityName);
     prepStatement.setString(2, encryptedPassword);
-    prepStatement.setString(3, "false");
+    prepStatement.setBoolean(3, true);
 
     int resultCode = prepStatement.executeUpdate();
     if (resultCode != 0) {
@@ -649,15 +712,19 @@ public class TinyMfaRestInterface extends BasePluginResource {
    *          the name of the account to query for
    * @param cts
    *          the corrected timestamp to query for
+   * @param isEnabled
+   *          is the account enabled
+   * @param succeeded
+   *          was the validation successful
    * @return
    * @throws GeneralException
    * @throws SQLException
    */
-  private boolean insertValidationAttemptToDb(String identityName, long cts, boolean isDisabled, boolean succeeded)
+  private boolean insertValidationAttemptToDb(String identityName, long cts, boolean isEnabled, boolean succeeded)
       throws GeneralException, SQLException {
     if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("ENTERING method %s(identityName %s, cts %s, succeeded %s)",
-          "insertValidationAttemptToDb", identityName, cts, succeeded));
+      _logger.debug(String.format("ENTERING method %s(identityName %s, cts %s, isEnabled %s, succeeded %s)",
+          "insertValidationAttemptToDb", identityName, cts, isEnabled, succeeded));
     }
 
     boolean wasCompleted = false;
@@ -668,7 +735,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
     prepStatement.setLong(1, new java.util.Date().getTime());
     prepStatement.setLong(2, cts);
     prepStatement.setString(3, identityName);
-    prepStatement.setString(4, (!isDisabled) ? "active" : "inactive");
+    prepStatement.setBoolean(4, isEnabled);
     prepStatement.setBoolean(5, succeeded);
 
     int resultCode = prepStatement.executeUpdate();
@@ -696,21 +763,21 @@ public class TinyMfaRestInterface extends BasePluginResource {
    * @throws GeneralException
    * @throws SQLException
    */
-  private Boolean isAccountDisabled(String identityName, SailPointContext context)
+  private Boolean isAccountEnabled(String identityName, SailPointContext context)
       throws GeneralException, SQLException {
     if (_logger.isDebugEnabled()) {
       _logger.debug(
-          String.format("ENTERING method %s(identityName %s, context %s)", "isAccountDisabled", identityName, context));
+          String.format("ENTERING method %s(identityName %s, context %s)", "isAccountEnabled", identityName, context));
     }
-    boolean isDisabled              = true;
+    boolean isEnabled               = true;
     Connection connection           = getConnection();
-    PreparedStatement prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_IS_ACCOUNT_DISABLED);
+    PreparedStatement prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_IS_ACCOUNT_ENABLED);
 
     prepStatement.setString(1, identityName);
 
     ResultSet resultSet = prepStatement.executeQuery();
     if (resultSet.next()) {
-      isDisabled = resultSet.getBoolean(1);
+      isEnabled = resultSet.getBoolean(1);
     }
 
     resultSet.close();
@@ -718,10 +785,10 @@ public class TinyMfaRestInterface extends BasePluginResource {
     connection.close();
 
     if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "isAccountDisabled", isDisabled));
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "isAccountEnabled", isEnabled));
     }
 
-    return isDisabled;
+    return isEnabled;
   }
 
   /**

@@ -3,35 +3,35 @@
   <p>the following table contains all validation attempts.</p>
   <br />
   <p>
-  <span>Number of records to fetch:&nbsp;<input data-ng-model="maxNumber" type="number" data-ng-init="10"></span>
+  <span>Number of records to fetch:&nbsp;<input data-ng-model="maxNumber" type="number" data-ng-init="10" class="maxnumber"></span>
   </p>
   <table class="table table table-striped table-hover table-condensed">
     <thead>
       <tr>
         <th>Audit ID</th>
-        <th>Identity Name</th>
-        <th>TinyMFA Status</th>
         <th>Access Time</th>
         <th>calc. timestamp</th>
-        <th>valid token</th>
+        <th>Identity Name</th>
+        <th>enabled</th>
+        <th>authenticated</th>
       </tr>
     </thead>
     <tbody>
       <tr>
         <td><input ng-model="searchtext.id"         type="text" placeholder="id filter"></td>
-        <td><input ng-model="searchtext.account"    type="text" placeholder="account filter"></td>
-        <td><input ng-model="searchtext.status"     type="text" placeholder="status filter"></td>
         <td><input ng-model="searchtext.accessTime" type="text" placeholder="access time filter"></td>
         <td><input ng-model="searchtext.cts"        type="text" placeholder="cts filter"></td>
+        <td><input ng-model="searchtext.account"    type="text" placeholder="account filter"></td>
+        <td><input ng-model="searchtext.status"     type="text" placeholder="status filter"></td>
         <td><input ng-model="searchtext.succeeded"  type="text" placeholder="true or false"></td>
       </tr>
       <tr
         data-ng-repeat="attempt in validations | limitTo:numberLimit:start | filter:searchtext">
         <td>{{attempt.id}}</td>
-        <td>{{attempt.account}}</td>
-        <td>{{attempt.status}}</td>
         <td>{{attempt.accessTime}}</td>
         <td>{{attempt.cts}}</td>
+        <td>{{attempt.account}}</td>
+        <td>{{attempt.status}}</td>
         <td>{{attempt.succeeded}}</td>
       </tr>
       <tr>

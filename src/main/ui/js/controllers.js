@@ -24,7 +24,6 @@
     try {
       $scope.isAdmin();
     }catch(error) {
-      alert(error);
     }
 
   }]);
@@ -156,14 +155,18 @@
 
   /** AdminController Controller **/
   app.controller('AdminController', ['$scope', '$http', '$timeout', function($scope, $http, $timeout) {
-    $scope.headline     = 'Tiny Multifactor Authentication - Admin Area';
-    $scope.currentPage  = 1;
-    $scope.numberLimit     = 10;
-    $scope.start        = 0;
-    $scope.maxNumber    = 100;
-    $scope.validations  = [];
-    $scope.numberLimits = [5,10,25,50,100];
-
+    $scope.headline       = 'Tiny Multifactor Authentication - Admin Area';
+    $scope.currentPage    = 1;
+    $scope.numberLimit    = 10;
+    $scope.start          = 0;
+    $scope.maxNumber      = 100;
+    $scope.validations    = [];
+    $scope.numberLimits   = [5,10,25,50,100];
+    $scope.accountName    = null;
+    $scope.manageUserInfo = null;
+    $scope.errorMessage   = null;
+    $scope.successMessage = null;
+    
     $scope.$watch('numberLimit',function(newVal){
       if(newVal){
         $scope.pages=Math.ceil($scope.validations.length/$scope.numberLimit);
@@ -214,7 +217,69 @@
       $scope.start=$scope.start - $scope.numberLimit;
       console.log( $scope.start)
     };
+    
+    $scope.enableAccount=function(accountName, toEnable){
+      $http({
+        method  : "GET",
+        withCredentials: true,
+        xsrfHeaderName : "X-XSRF-TOKEN",
+        xsrfCookieName : "CSRF-TOKEN",
+        url : PluginHelper.getPluginRestUrl('tiny-mfa') + '/accounts/' + accountName + '/enable/' + toEnable
+      }).then(function mySuccess(response) {
+        if(response.data === 'true') {
+          $scope.manageUserInfo = null;
+          $scope.accountName    = null;
+          $scope.errorMessage   = null;
+          $scope.successMessage = "account successfully updated";
+          $timeout(function() {
+            $scope.successMessage   = null;
+          }, 3000);
+        } else {
+          $scope.errorMessage   = "account could not be updated";
+          $scope.successMessage = null;
+          $scope.manageUserInfo = null;
+          $scope.accountName    = null;
+          $timeout(function() {
+            $scope.errorMessage   = null;
+          }, 3000);
+        }
+      }, function myError(response) {
+        $scope.errorMessage   = "account could not be updated: " + response;
+        $scope.successMessage = null;
+        $scope.manageUserInfo = null;
+        $scope.accountName    = null;
+        $timeout(function() {
+          $scope.errorMessage   = null;
+        }, 3000);
+      });
+    
+    };
 
+    $scope.searchAccount = function() {
+      $http({
+        method  : "GET",
+        withCredentials: true,
+        xsrfHeaderName : "X-XSRF-TOKEN",
+        xsrfCookieName : "CSRF-TOKEN",
+        url : PluginHelper.getPluginRestUrl('tiny-mfa') + '/accounts/' + $scope.accountName
+      }).then(function mySuccess(response) {
+        $scope.manageUserInfo = response.data;
+        $scope.accountName    = null;
+        if($scope.manageUserInfo.length <= 0) {
+          $scope.manageUserInfo = null;
+          $scope.errorMessage = "account could not be found";
+          $timeout(function() {
+            $scope.errorMessage   = null;
+          }, 3000);
+        }
+      }, function myError(response) {
+        $scope.errorMessage = "There was an issue loading the accounts";
+        $timeout(function() {
+          $scope.errorMessage   = null;
+        }, 3000);
+      });
+    };
+    
     $scope.getValidationAttempts = function() {
       $http({
         method  : "GET",
@@ -226,7 +291,10 @@
         $scope.validations = response.data;
 
       }, function myError(response) {
-
+        $scope.errorMessage = "There was an issue loading the audit information";
+        $timeout(function() {
+          $scope.errorMessage   = null;
+        }, 3000);
       });
     };
 

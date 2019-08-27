@@ -21,3 +21,11 @@ ul, ul li {
   list-style: disc;
   margin-left: 10px;
 }
+
+.maxnumber {
+  width: 50px; 
+}
+
+.searchaccountfield {
+  width: 250px;
+}
