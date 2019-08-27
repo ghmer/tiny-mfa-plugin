@@ -4,7 +4,7 @@
   <br />
   <p>
   <input type="text" name="searchAccountField" data-ng-model="accountName" class="searchaccountfield" required />
-  <button ng-click="searchAccount()">search</button>
+  <button data-ng-click="searchAccount()">search</button>
   </p>
   <div data-ng-show="successMessage" class="alert alert-success">
     <span data-ng-show="successMessage" data-ng-cloak>{{successMessage}}</span>
@@ -29,7 +29,7 @@
           <td>{{account.id}}</td>
           <td>{{account.account}}</td>
           <td>{{account.enabled}}</td>
-          <td><button ng-click="enableAccount(account.account, !account.enabled)">{{account.enabled ? 'disable' : 'enable'}}</button></td>
+          <td><button data-ng-click="enableAccount(account.account, !account.enabled)">{{account.enabled ? 'disable' : 'enable'}}</button></td>
         </tr>
       </tbody>
     </table>

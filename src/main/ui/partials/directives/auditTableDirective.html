@@ -18,12 +18,12 @@
     </thead>
     <tbody>
       <tr>
-        <td><input ng-model="searchtext.id"         type="text" placeholder="id filter"></td>
-        <td><input ng-model="searchtext.accessTime" type="text" placeholder="access time filter"></td>
-        <td><input ng-model="searchtext.cts"        type="text" placeholder="cts filter"></td>
-        <td><input ng-model="searchtext.account"    type="text" placeholder="account filter"></td>
-        <td><input ng-model="searchtext.status"     type="text" placeholder="status filter"></td>
-        <td><input ng-model="searchtext.succeeded"  type="text" placeholder="true or false"></td>
+        <td><input data-ng-model="searchtext.id"         type="text" placeholder="id filter"></td>
+        <td><input data-ng-model="searchtext.accessTime" type="text" placeholder="access time filter"></td>
+        <td><input data-ng-model="searchtext.cts"        type="text" placeholder="cts filter"></td>
+        <td><input data-ng-model="searchtext.account"    type="text" placeholder="account filter"></td>
+        <td><input data-ng-model="searchtext.status"     type="text" placeholder="status filter"></td>
+        <td><input data-ng-model="searchtext.succeeded"  type="text" placeholder="true or false"></td>
       </tr>
       <tr
         data-ng-repeat="attempt in validations | limitTo:numberLimit:start | filter:searchtext">
