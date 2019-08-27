@@ -472,7 +472,11 @@ public class TinyMfaRestInterface extends BasePluginResource {
     }
 
     if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "getQrCodeData", qrCodeBase64));
+      if(_logger.isTraceEnabled()) {
+        _logger.trace(String.format("LEAVING method %s (returns: %s)", "getQrCodeData", qrCodeBase64));
+      } else {
+        _logger.debug(String.format("LEAVING method %s (returns: %s)", "getQrCodeData", "*** (masked)"));
+      }
     }
     // return either an error or the qrCodeUrl
     return (hasError) ? Response.serverError().build() : Response.ok().entity(qrCodeBase64).build();
@@ -629,7 +633,11 @@ public class TinyMfaRestInterface extends BasePluginResource {
     connection.close();
 
     if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "createAccount", generatedPassword));
+      if(_logger.isTraceEnabled()) {
+        _logger.trace(String.format("LEAVING method %s (returns: %s)", "createAccount", generatedPassword));
+      } else {
+        _logger.debug(String.format("LEAVING method %s (returns: %s)", "createAccount", "*** (masked)"));
+      }
     }
     return generatedPassword;
   }
@@ -790,7 +798,11 @@ public class TinyMfaRestInterface extends BasePluginResource {
     connection.close();
 
     if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "returnPasswordFromDb", result));
+      if(_logger.isTraceEnabled()) {
+        _logger.trace(String.format("LEAVING method %s (returns: %s)", "returnPasswordFromDb", result));
+      } else {
+        _logger.debug(String.format("LEAVING method %s (returns: %s)", "returnPasswordFromDb", "*** (masked)"));
+      }
     }
     return result;
   }
