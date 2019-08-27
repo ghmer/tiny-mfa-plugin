@@ -146,7 +146,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
   }
   
   /**
-   * returns the requested account details
+   * modifies the account status (enabled/disabled)
    * 
    * @param identityName
    *          the identity to query for
