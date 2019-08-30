@@ -21,6 +21,8 @@ import javax.ws.rs.core.Response;
 import org.apache.log4j.Logger;
 
 import de.whisperedshouts.tinymfa.TinyMfaImplementation;
+import de.whisperedshouts.tinymfa.util.SqlSelectHelper;
+import de.whisperedshouts.tinymfa.util.SqlSelectHelper.QUERY_TYPE;
 import de.whisperedshouts.tinymfa.util.TinyMfaUtil;
 import sailpoint.api.SailPointContext;
 import sailpoint.object.Capability;
@@ -57,33 +59,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
   // a format string for the qr code
   public static final String QR_CODE_FORMATSTRING = "otpauth://totp/%1$s:%2$s@%1$s?algorithm=SHA1&digits=6&issuer=%1$s&period=30&secret=%3$s";
 
-  // check for failed validation attempts
-  public static final String SQL_COUNT_VALIDATION_ATTEMPTS = "SELECT COUNT(*) FROM MFA_VALIDATION_ATTEMPTS WHERE CTS = ? and ACCOUNT_NAME = ? and SUCCEEDED = ?";
-
-  //insert a new account into the database. This happens on first usage of the  plugin
-   public static final String SQL_CREATE_NEW_ACCOUNT_QUERY = "INSERT INTO MFA_ACCOUNTS(ACCOUNT_NAME, USERPASSWORD, ISENABLED) VALUES(?,?,?)";
   
-  //update the isDisabled setting of the account
-  public static final String SQL_UPDATE_IS_ENABLED_STATUS = "UPDATE MFA_ACCOUNTS SET ISENABLED=? WHERE ACCOUNT_NAME=?";
-
-  // insert a new validation attempt into the database
-  public static final String SQL_INSERT_VALIDATION_ATTEMPT = "INSERT INTO MFA_VALIDATION_ATTEMPTS(ACCESS_TIME,CTS,ACCOUNT_NAME,ACCOUNT_ENABLED,SUCCEEDED) VALUES(?,?,?,?,?)";
-
-  // check if user is disabled
-  public static final String SQL_IS_ACCOUNT_ENABLED = "SELECT ISENABLED FROM MFA_ACCOUNTS WHERE ACCOUNT_NAME=?";
-
-  // the SQL query used to retrieve the userkey from the database
-  public static final String SQL_RETRIEVE_PASSWORD_QUERY = "SELECT USERPASSWORD FROM MFA_ACCOUNTS WHERE ACCOUNT_NAME=?";
-
-  //select specific account attributes
-   public static final String SQL_SELECT_ACCOUNT = "SELECT ID, ACCOUNT_NAME, ISENABLED FROM MFA_ACCOUNTS WHERE ACCOUNT_NAME=?";
-  
-  // select all account attributes
-  public static final String SQL_SELECT_ALL_ACCOUNTS = "SELECT ID, ACCOUNT_NAME, ISENABLED FROM MFA_ACCOUNTS";
-
-  // select audit trail
-  public static final String SQL_SELECT_AUDIT = "SELECT ID, ACCESS_TIME, CTS, ACCOUNT_NAME, ACCOUNT_ENABLED, SUCCEEDED FROM MFA_VALIDATION_ATTEMPTS ORDER BY ID DESC";
-
   /**
    * activates a token for an identity
    * 
@@ -168,7 +144,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
     PreparedStatement prepStatement  = null;
     try {
       connection    = getConnection();
-      prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_UPDATE_IS_ENABLED_STATUS);
+      prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.UPDATE_ACCOUNT_ENABLED));
       prepStatement.setBoolean(1, enableStatus);
       prepStatement.setString(2, identityName);
 
@@ -220,7 +196,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
     PreparedStatement prepStatement  = null;
     try {
       connection    = getConnection();
-      prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_SELECT_ACCOUNT);
+      prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.SINGLE_ACCOUNT_QUERY));
       prepStatement.setString(1, identityName);
 
       ResultSet resultSet = prepStatement.executeQuery();
@@ -271,7 +247,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
     PreparedStatement prepStatement;
     try {
       connection = getConnection();
-      prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_SELECT_ALL_ACCOUNTS);
+      prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.ALL_ACCOUNTS_QUERY));
 
       ResultSet resultSet = prepStatement.executeQuery();
       while (resultSet.next()) {
@@ -348,7 +324,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
     PreparedStatement prepStatement   = null;
     try {
       connection = getConnection();
-      prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_SELECT_AUDIT);
+      prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.AUDIT_QUERY, true));
       ResultSet resultSet = prepStatement.executeQuery();
       while (resultSet.next()) {
         Map<String, Object> auditObject = TinyMfaUtil.buildAuditObjectMap(resultSet);
@@ -432,18 +408,18 @@ public class TinyMfaRestInterface extends BasePluginResource {
       _logger.debug(String.format("ENTERING method %s(limit %s)", "getAuditWithLimit", limit));
     }
 
-    int count = 0;
     List<Map<String, Object>> result  = new ArrayList<>();
     Connection connection             = null;
     PreparedStatement prepStatement   = null;
     try {
       connection = getConnection();
-      prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_SELECT_AUDIT);
+      prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.AUDIT_QUERY, true));
+      prepStatement.setInt(1, limit);
+      
       ResultSet resultSet = prepStatement.executeQuery();
-      while (resultSet.next() && count < limit) {
+      while (resultSet.next()) {
         Map<String, Object> auditObject = TinyMfaUtil.buildAuditObjectMap(resultSet);
         result.add(auditObject);
-        count++;
       }
 
       resultSet.close();
@@ -685,7 +661,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
   
 
     Connection connection = getConnection();
-    PreparedStatement prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_CREATE_NEW_ACCOUNT_QUERY);
+    PreparedStatement prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.CREATE_NEW_ACCOUNT));
 
     prepStatement.setString(1, identityName);
     prepStatement.setString(2, encryptedPassword);
@@ -735,7 +711,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
     boolean wasCompleted = false;
 
     Connection connection           = getConnection();
-    PreparedStatement prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_INSERT_VALIDATION_ATTEMPT);
+    PreparedStatement prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.AUDIT_VALIDATION_ATTEMPT));
     
     prepStatement.setLong(1, new java.util.Date().getTime());
     prepStatement.setLong(2, cts);
@@ -776,7 +752,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
     }
     boolean isEnabled               = true;
     Connection connection           = getConnection();
-    PreparedStatement prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_IS_ACCOUNT_ENABLED);
+    PreparedStatement prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.IS_ACCOUNT_ENABLED));
 
     prepStatement.setString(1, identityName);
 
@@ -815,7 +791,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
     }
     int result            = 0;
     Connection connection = getConnection();
-    PreparedStatement prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_COUNT_VALIDATION_ATTEMPTS);
+    PreparedStatement prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.COUNT_VALIDATION_ATTEMPTS));
 
     prepStatement.setString(1, identityName);
     prepStatement.setLong(2, cts);
@@ -855,7 +831,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
     }
     String result         = null;
     Connection connection = getConnection();
-    PreparedStatement prepStatement = connection.prepareStatement(TinyMfaRestInterface.SQL_RETRIEVE_PASSWORD_QUERY);
+    PreparedStatement prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.RETRIEVE_USER_PASSWORD));
 
     prepStatement.setString(1, identityName);
 
