@@ -152,13 +152,18 @@ public class TinyMfaRestInterface extends BasePluginResource {
       if(countOfModifiedRows > 0) {
         succeeded = true;
       }
-
-      prepStatement.close();
     } catch (SQLException e) {
       _logger.error(e.getMessage());
     } catch (GeneralException e) {
       _logger.error(e.getMessage());
     } finally {
+      if(prepStatement != null) {
+        try {
+          prepStatement.close();
+        } catch (SQLException e) {
+          _logger.error(e.getMessage());
+        }
+      }
       if (connection != null) {
         try {
           connection.close();
@@ -194,24 +199,38 @@ public class TinyMfaRestInterface extends BasePluginResource {
     List<Map<String, Object>> result = new ArrayList<>();
     Connection connection            = null;
     PreparedStatement prepStatement  = null;
+    ResultSet resultSet              = null;
     try {
       connection    = getConnection();
       prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.SINGLE_ACCOUNT_QUERY));
       prepStatement.setString(1, identityName);
 
-      ResultSet resultSet = prepStatement.executeQuery();
+      resultSet = prepStatement.executeQuery();
       while (resultSet.next()) {
         Map<String, Object> accountObject = TinyMfaUtil.buildAccountObjectMap(resultSet);
         result.add(accountObject);
       }
 
       resultSet.close();
-      prepStatement.close();
     } catch (SQLException e) {
       _logger.error(e.getMessage());
     } catch (GeneralException e) {
       _logger.error(e.getMessage());
     } finally {
+      if(resultSet != null) {
+        try {
+          resultSet.close();
+        } catch (SQLException e) {
+          _logger.error(e.getMessage());
+        }
+      }
+      if(prepStatement != null) {
+        try {
+          prepStatement.close();
+        } catch (SQLException e) {
+          _logger.error(e.getMessage());
+        }
+      }
       if (connection != null) {
         try {
           connection.close();
@@ -243,13 +262,14 @@ public class TinyMfaRestInterface extends BasePluginResource {
     }
 
     List<Map<String, Object>> result = new ArrayList<>();
-    Connection connection = null;
-    PreparedStatement prepStatement;
+    Connection connection           = null;
+    PreparedStatement prepStatement = null;
+    ResultSet resultSet             = null;
     try {
       connection = getConnection();
       prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.ALL_ACCOUNTS_QUERY));
 
-      ResultSet resultSet = prepStatement.executeQuery();
+      resultSet = prepStatement.executeQuery();
       while (resultSet.next()) {
         Map<String, Object> accountObject = TinyMfaUtil.buildAccountObjectMap(resultSet);
         result.add(accountObject);
@@ -262,6 +282,20 @@ public class TinyMfaRestInterface extends BasePluginResource {
     } catch (GeneralException e) {
       _logger.error(e.getMessage());
     } finally {
+      if(resultSet != null) {
+        try {
+          resultSet.close();
+        } catch (SQLException e) {
+          _logger.error(e.getMessage());
+        }
+      }
+      if(prepStatement != null) {
+        try {
+          prepStatement.close();
+        } catch (SQLException e) {
+          _logger.error(e.getMessage());
+        }
+      }
       if (connection != null) {
         try {
           connection.close();
@@ -322,10 +356,11 @@ public class TinyMfaRestInterface extends BasePluginResource {
     List<Map<String, Object>> result  = new ArrayList<>();
     Connection connection             = null;
     PreparedStatement prepStatement   = null;
+    ResultSet resultSet               = null;
     try {
       connection = getConnection();
       prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.AUDIT_QUERY, true));
-      ResultSet resultSet = prepStatement.executeQuery();
+      resultSet = prepStatement.executeQuery();
       while (resultSet.next()) {
         Map<String, Object> auditObject = TinyMfaUtil.buildAuditObjectMap(resultSet);
         result.add(auditObject);
@@ -338,6 +373,20 @@ public class TinyMfaRestInterface extends BasePluginResource {
     } catch (GeneralException e) {
       _logger.error(e.getMessage());
     } finally {
+      if(resultSet != null) {
+        try {
+          resultSet.close();
+        } catch (SQLException e) {
+          _logger.error(e.getMessage());
+        }
+      }
+      if(prepStatement != null) {
+        try {
+          prepStatement.close();
+        } catch (SQLException e) {
+          _logger.error(e.getMessage());
+        }
+      }
       if (connection != null) {
         try {
           connection.close();
@@ -411,12 +460,13 @@ public class TinyMfaRestInterface extends BasePluginResource {
     List<Map<String, Object>> result  = new ArrayList<>();
     Connection connection             = null;
     PreparedStatement prepStatement   = null;
+    ResultSet resultSet               = null;
     try {
       connection = getConnection();
       prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.AUDIT_QUERY, true));
       prepStatement.setInt(1, limit);
       
-      ResultSet resultSet = prepStatement.executeQuery();
+      resultSet = prepStatement.executeQuery();
       while (resultSet.next()) {
         Map<String, Object> auditObject = TinyMfaUtil.buildAuditObjectMap(resultSet);
         result.add(auditObject);
@@ -429,6 +479,20 @@ public class TinyMfaRestInterface extends BasePluginResource {
     } catch (GeneralException e) {
       _logger.error(e.getMessage());
     } finally {
+      if(resultSet != null) {
+        try {
+          resultSet.close();
+        } catch (SQLException e) {
+          _logger.error(e.getMessage());
+        }
+      }
+      if(prepStatement != null) {
+        try {
+          prepStatement.close();
+        } catch (SQLException e) {
+          _logger.error(e.getMessage());
+        }
+      }
       if (connection != null) {
         try {
           connection.close();
@@ -647,7 +711,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
    * @throws GeneralException
    * @throws SQLException
    */
-  private String createAccount(String identityName, SailPointContext context) throws GeneralException, SQLException {
+  private String createAccount(String identityName, SailPointContext context) throws GeneralException {
     if (_logger.isDebugEnabled()) {
       _logger.debug(String.format("ENTERING method %s(identityName %s)", "createAccount", identityName));
     }
@@ -661,20 +725,42 @@ public class TinyMfaRestInterface extends BasePluginResource {
   
 
     Connection connection = getConnection();
-    PreparedStatement prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.CREATE_NEW_ACCOUNT));
+    PreparedStatement prepStatement = null;;
+    try {
+      prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.CREATE_NEW_ACCOUNT));
 
-    prepStatement.setString(1, identityName);
-    prepStatement.setString(2, encryptedPassword);
-    prepStatement.setBoolean(3, true);
+      prepStatement.setString(1, identityName);
+      prepStatement.setString(2, encryptedPassword);
+      prepStatement.setBoolean(3, true);
 
-    int resultCode = prepStatement.executeUpdate();
-    if (resultCode != 0) {
-    } else {
-      throw new GeneralException("User could not be created");
+      int resultCode = prepStatement.executeUpdate();
+      if (resultCode != 0) {
+      } else {
+        throw new GeneralException("User could not be created");
+      }
+    } catch (SQLException e) {
+      _logger.error(e.getMessage());
+    } finally {
+      if(prepStatement != null) {
+        try {
+          prepStatement.close();
+        } catch (SQLException e) {
+          _logger.error(e.getMessage());
+        }
+      }
+      
+      if(connection != null) {
+        try {
+          connection.close();
+        } catch (SQLException e) {
+          _logger.error(e.getMessage());
+        }
+      }
+      
     }
 
-    prepStatement.close();
-    connection.close();
+
+    
 
     if (_logger.isDebugEnabled()) {
       if(_logger.isTraceEnabled()) {
@@ -711,21 +797,35 @@ public class TinyMfaRestInterface extends BasePluginResource {
     boolean wasCompleted = false;
 
     Connection connection           = getConnection();
-    PreparedStatement prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.AUDIT_VALIDATION_ATTEMPT));
+    PreparedStatement prepStatement = null;
     
-    prepStatement.setLong(1, new java.util.Date().getTime());
-    prepStatement.setLong(2, cts);
-    prepStatement.setString(3, identityName);
-    prepStatement.setBoolean(4, isEnabled);
-    prepStatement.setBoolean(5, succeeded);
+    
+    try {
+      prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.AUDIT_VALIDATION_ATTEMPT));
+      
+      prepStatement.setLong(1, new java.util.Date().getTime());
+      prepStatement.setLong(2, cts);
+      prepStatement.setString(3, identityName);
+      prepStatement.setBoolean(4, isEnabled);
+      prepStatement.setBoolean(5, succeeded);
 
-    int resultCode = prepStatement.executeUpdate();
-    if (resultCode != 0) {
-      wasCompleted = true;
+      int resultCode = prepStatement.executeUpdate();
+      if (resultCode != 0) {
+        wasCompleted = true;
+      }
+      
+    } catch(Exception e) {
+      _logger.error(e.getMessage());
+      throw new GeneralException(e);
+    } finally {
+      if(prepStatement != null) {
+        prepStatement.close();
+      }
+      
+      if(connection != null) {
+        connection.close();
+      }
     }
-
-    prepStatement.close();
-    connection.close();
 
     if (_logger.isDebugEnabled()) {
       _logger.debug(String.format("LEAVING method %s (returns: %s)", "insertValidationAttemptToDb", wasCompleted));
@@ -752,18 +852,31 @@ public class TinyMfaRestInterface extends BasePluginResource {
     }
     boolean isEnabled               = true;
     Connection connection           = getConnection();
-    PreparedStatement prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.IS_ACCOUNT_ENABLED));
+    PreparedStatement prepStatement = null;
+    ResultSet resultSet             = null;
+    try {
+      prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.IS_ACCOUNT_ENABLED));
+      prepStatement.setString(1, identityName);
 
-    prepStatement.setString(1, identityName);
-
-    ResultSet resultSet = prepStatement.executeQuery();
-    if (resultSet.next()) {
-      isEnabled = resultSet.getBoolean(1);
+      resultSet = prepStatement.executeQuery();
+      if (resultSet.next()) {
+        isEnabled = resultSet.getBoolean(1);
+      }
+    } catch (SQLException e) {
+      _logger.error(e.getMessage());
+    } finally {
+      if(resultSet != null) {
+        resultSet.close();
+      }
+      if(prepStatement != null) {
+        prepStatement.close();
+      }
+      
+      if(connection != null) {
+        connection.close();
+      }
     }
 
-    resultSet.close();
-    prepStatement.close();
-    connection.close();
 
     if (_logger.isDebugEnabled()) {
       _logger.debug(String.format("LEAVING method %s (returns: %s)", "isAccountEnabled", isEnabled));
@@ -789,22 +902,34 @@ public class TinyMfaRestInterface extends BasePluginResource {
       _logger.debug(String.format("ENTERING method %s(identityName %s, cts %s)", "returnFailedValidationAttempts",
           identityName, cts));
     }
-    int result            = 0;
-    Connection connection = getConnection();
-    PreparedStatement prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.COUNT_VALIDATION_ATTEMPTS));
+    int result                      = 0;
+    Connection connection           = getConnection();
+    PreparedStatement prepStatement = null;
+    ResultSet resultSet             = null;
+    try {
+      prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.COUNT_VALIDATION_ATTEMPTS));
+      prepStatement.setString(1, identityName);
+      prepStatement.setLong(2, cts);
+      prepStatement.setBoolean(3, false);
 
-    prepStatement.setString(1, identityName);
-    prepStatement.setLong(2, cts);
-    prepStatement.setBoolean(3, false);
-
-    ResultSet resultSet = prepStatement.executeQuery();
-    if (resultSet.next()) {
-      result = resultSet.getInt(1);
+      resultSet = prepStatement.executeQuery();
+      if (resultSet.next()) {
+        result = resultSet.getInt(1);
+      }
+    } catch (SQLException e) {
+      _logger.error(e.getMessage());
+    } finally {
+      if(resultSet != null) {
+        resultSet.close();
+      }
+      if(prepStatement != null) {
+        prepStatement.close();
+      }
+      
+      if(connection != null) {
+        connection.close();
+      }
     }
-
-    resultSet.close();
-    prepStatement.close();
-    connection.close();
 
     if (_logger.isDebugEnabled()) {
       _logger.debug(String.format("LEAVING method %s (returns: %s)", "returnFailedValidationAttempts", result));
@@ -829,21 +954,33 @@ public class TinyMfaRestInterface extends BasePluginResource {
       _logger.debug(String.format("ENTERING method %s(identityName %s, context %s)", "returnPasswordFromDb",
           identityName, context));
     }
-    String result         = null;
-    Connection connection = getConnection();
-    PreparedStatement prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.RETRIEVE_USER_PASSWORD));
+    String result                   = null;
+    Connection connection           = getConnection();
+    PreparedStatement prepStatement = null;
+    ResultSet resultSet             = null;
+    try {
+      prepStatement = connection.prepareStatement(SqlSelectHelper.getValidQuery(connection, QUERY_TYPE.RETRIEVE_USER_PASSWORD));
+      prepStatement.setString(1, identityName);
 
-    prepStatement.setString(1, identityName);
-
-    ResultSet resultSet = prepStatement.executeQuery();
-    if (resultSet.next()) {
-      String encryptedPassword = resultSet.getString(1);
-      result = context.decrypt(encryptedPassword);
+      resultSet = prepStatement.executeQuery();
+      if (resultSet.next()) {
+        String encryptedPassword = resultSet.getString(1);
+        result = context.decrypt(encryptedPassword);
+      }
+    } catch (SQLException e) {
+      _logger.error(e.getMessage());
+    } finally {
+      if(resultSet != null) {
+        resultSet.close();
+      }
+      if(prepStatement != null) {
+        prepStatement.close();
+      }
+      
+      if(connection != null) {
+        connection.close();
+      }
     }
-
-    resultSet.close();
-    prepStatement.close();
-    connection.close();
 
     if (_logger.isDebugEnabled()) {
       if(_logger.isTraceEnabled()) {
