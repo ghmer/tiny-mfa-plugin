@@ -16,7 +16,7 @@
                       label="issuer domain" />
             <Setting  name="maxAttempts" 
                       dataType="int"
-                      defaultValue="15" label="maximum validation attempts"
+                      defaultValue="5" label="maximum validation attempts"
                       helpText="how much attempts are allowed for a given timesegment until we don't validate anymore" />
             <Setting  name="mfaAppIos" 
                       dataType="string"
