@@ -37,7 +37,14 @@
                       dataType="string"
                       defaultValue="#011e69" label="QRCode foreground color"
                       helpText="The foreground color of the generated QRCode. Defaults to SailPoint blue" />
-
+            <Setting  name="sendEnrollmentNotification" 
+                      dataType="boolean"
+                      defaultValue="true" label="send enrollment notification"
+                      helpText="Enabling this setting will notify your users upon enrollment" />
+            <Setting  name="enrollmentNotificationTemplate" 
+                      dataType="string"
+                      defaultValue="TinyMFA Enroll User Notification Template" label="Enrollment Notification Template"
+                      helpText="The template being used to notify your users" />
           </List>
         </value>
       </entry>

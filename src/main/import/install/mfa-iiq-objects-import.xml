@@ -80,7 +80,7 @@
   </Form>
 
   <Workflow explicitTransitions="true"
-    handler="sailpoint.api.StandardWorkflowHandler" libraries="Identity,MFA" name="MFA TinyMFA" type="MultiFactorAuthentication">
+    handler="sailpoint.api.StandardWorkflowHandler" libraries="Identity,MFA" name="TinyMFA Authentication Workflow" type="MultiFactorAuthentication">
     <Variable initializer="false" name="trace">
       <Description>Used for debugging this workflow and when set to true trace will be sent to stdout.</Description>
     </Variable>
@@ -175,6 +175,121 @@ return response;
     </Step>
     <Step icon="Stop" name="End" posX="394" posY="12" />
   </Workflow>
+  
+  <Workflow explicitTransitions="true" name="TinyMFA Enroll User Workflow" type="IdentityUpdate">
+    <Variable initializer="TinyMFA Enroll User Notification Template" name="informUserEmailTemplate">
+      <Description>name of the email template that is going to be used to inform the user about their enrollment</Description>
+    </Variable>
+    <Variable input="true" name="trace"/>
+    <Variable input="true" name="identityName" required="true">
+      <Description>name of the identity that will be enrolled</Description>
+    </Variable>
+    <Variable name="project"/>
+    <Variable name="plan"/>
+    <Variable name="tinyMfaPluginUrl"/>
+    <Variable initializer="false" input="true" name="sendEmail"/>
+    <Variable input="true" name="listOfCapabilities"/>
+    <Step icon="Start" name="Start" posX="28" posY="10" resultVariable="tinyMfaPluginUrl">
+      <Transition to="initialize tinyMfaPluginUrl"/>
+    </Step>
+      <Step icon="Default" name="initialize tinyMfaPluginUrl" posX="119" posY="10" resultVariable="tinyMfaPluginUrl">
+      <Script>
+        <Source>
+<![CDATA[
+sailpoint.object.Configuration configuration = context.getConfiguration();
+String serverRootPath = (String) configuration.get("serverRootPath");
+String pluginPath     = String.format("%s/%s", new Object[]{serverRootPath, "plugins/pluginPage.jsf?pn=tiny_mfa_plugin"});
+return pluginPath;
+]]>
+        </Source>
+      </Script>
+      <Transition to="initialize plan"/>
+    </Step>
+    <Step icon="Default" name="initialize plan" posX="367" posY="10" resultVariable="plan">
+      <Script>
+        <Source>
+<![CDATA[
+import sailpoint.object.ProvisioningPlan;
+import sailpoint.object.ProvisioningPlan.AccountRequest;
+import sailpoint.object.ProvisioningPlan.AttributeRequest;
+
+import java.util.List;
+import java.util.ArrayList;
+
+
+ProvisioningPlan plan = null;
+    
+if(listOfCapabilities != null && !listOfCapabilities.isEmpty()) {
+    plan = new ProvisioningPlan();
+    plan.setNativeIdentity(identityName);
+    List accountRequestList = new ArrayList();
+    AccountRequest accountRequest = new AccountRequest();
+    accountRequest.setNativeIdentity(identityName);
+    accountRequest.setApplication(ProvisioningPlan.IIQ_APPLICATION_NAME);
+    accountRequest.setOperation(AccountRequest.Operation.Modify);
+
+    for(Object capability : listOfCapabilities) {
+        String capabilityName = (String) capability;
+        accountRequest.add(new AttributeRequest("Capabilities", ProvisioningPlan.Operation.Add, capabilityName));
+    }
+      
+    accountRequestList.add(accountRequest);
+    plan.setAccountRequests(accountRequestList);
+}
+    
+return plan;
+]]>
+        </Source>
+      </Script>
+      <Transition to="compile project" when="plan != null"/>
+      <Transition to="Stop"/>
+    </Step>
+    <Step action="call:provisionProject" icon="Provision" name="provision capabilities" posX="566" posY="130">
+      <Arg name="project" value="ref:project"/>
+      <Transition to="send email" when="ref:sendEmail"/>
+      <Transition to="Stop"/>
+    </Step>
+    <Step action="sendEmail" icon="Email" name="send email" posX="736" posY="126">
+        <Arg name="template" value="ref:informUserEmailTemplate"/>
+        <Arg name="identityDisplayName" value="script:resolveDisplayName(identityName)"/>
+        <Arg name="tinyMfaPluginUrl" value="ref:tinyMfaPluginUrl"/>
+        <Arg name="to" value="script:getEmail(identityName)"/>
+      <Transition to="Stop"/>
+    </Step>
+    <Step icon="Stop" name="Stop" posX="735" posY="6"/>
+    <Step action="compileProvisioningProject" icon="Default" name="compile project" posX="435" posY="130" resultVariable="project">
+      <Arg name="plan" value="ref:plan"/>
+      <Transition to="provision capabilities"/>
+    </Step>
+  </Workflow>
+  
+  <EmailTemplate name="TinyMFA Enroll User Notification Template">
+    <Body>
+<![CDATA[
+  <html>
+  <h4>Dear ${identityDisplayName},</h4>
+  <p>You have been enrolled to use multifactor authentication when you log into IdentityIQ.</p>
+  <p>To proceed, please log into IdentityIQ: <b><a href="${tinyMfaPluginUrl}" target="">${tinyMfaPluginUrl}</a></b></p>
+  <p>You will find a new icon in the form of a <i class="fa fa-mobile">mobile phone</i> that you need to click on.</p>
+  <p>There, you will find an instruction that you need to follow to activate your multifactor authentication setup.</p>
+  <p>
+    <br/>
+  </p>
+  <p>Thank you and Best Regards,</p>
+  <p>IdentityIQ administration team</p>
+  </html>
+]]>    
+    </Body>
+    <Signature>
+      <Inputs>
+        <Argument name="to" type="string"/>
+        <Argument name="identityName" type="string"/>
+        <Argument name="identityDisplayName" type="string"/>
+        <Argument name="tinyMfaPluginUrl" type="string"/>
+      </Inputs>
+    </Signature>
+    <Subject>You have been enrolled to IdentityIQ Multifactor Authentication</Subject>
+  </EmailTemplate>
 
   <Configuration name="MFAConfiguration">
     <Attributes>
@@ -187,7 +302,7 @@ return response;
                   <Reference class="sailpoint.object.DynamicScope" name="TinyMFA Authenticated" />
                 </MFAPopulations>
                 <MFAWorkflow>
-                  <Reference class="sailpoint.object.Workflow" name="MFA TinyMFA" />
+                  <Reference class="sailpoint.object.Workflow" name="TinyMFA Authentication Workflow" />
                 </MFAWorkflow>
               </MFAConfig>
             </List>

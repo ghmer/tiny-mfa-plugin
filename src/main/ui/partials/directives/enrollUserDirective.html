@@ -1,0 +1,51 @@
+<div id="tinyMfaEnrollUserDiv">
+  <h4>User Enrollment</h4>
+  <p>Search a user to enroll using the field below.</p>
+  <br />
+  <p>
+  <div class="col-xs-3">
+    <input class="form-control" id="searchIdentityField" type="text" data-ng-model="identityName" required>
+  </div>
+  <button class="btn btn-default" data-ng-click="getIdentityInfo()">search</button>
+  </p>
+  <div data-ng-show="enrollSuccessMessage" class="alert alert-success">
+    <span data-ng-show="enrollSuccessMessage" data-ng-cloak>{{enrollSuccessMessage}}</span>
+  </div>
+  <div data-ng-show="enrollErrorMessage" class="alert alert-danger">
+    <span data-ng-show="enrollErrorMessage" data-ng-cloak>{{enrollErrorMessage}}</span>
+  </div>
+  <br />
+  <div id="tinyMfaEnrollUserTableDiv" data-ng-show="enrollUserInfo">
+    <table class="table table table-striped table-hover table-condensed">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>identity name</th>
+          <th>firstname</th>
+          <th>lastname</th>
+          <th>email</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{{enrollUserInfo.id}}</td>
+          <td>{{enrollUserInfo.name}}</td>
+          <td>{{enrollUserInfo.firstname}}</td>
+          <td>{{enrollUserInfo.lastname}}</td>
+          <td>{{enrollUserInfo.email}}</td>          
+        </tr>
+      </tbody>
+    </table>
+    <div id="enrollUserAction">
+      <p>Enroll user <b>{{enrollUserInfo.name}}</b></p>
+      <label><input type="checkbox" data-ng-model="withAdminCap">provision with admin capability</label>
+      <div class="alert alert-warning" data-ng-show="withAdminCap">
+        <strong>Warning!</strong> by selecting this checkbox, you will assign administrative permissions to the selected identity. Click on 'enroll' to continue.
+      </div>
+      <div class="alert alert-info" data-ng-hide="withAdminCap">
+        Click on 'enroll' to continue.
+      </div>
+       <button class="btn btn-default" data-ng-click="enrollAccount()">enroll</button>
+    </div>
+  </div>
+</div>

@@ -81,5 +81,16 @@
       'ui/partials/directives/manageUserDirective.html')
     };
   });
+  
+  app.directive('tinyMfaEnrollUser', function() {
+    return {
+      controller : 'AdminController',
+      controllerAs : 'controller',
+      restrict : 'E',
+      replace : true,
+      templateUrl : PluginHelper.getPluginFileUrl('tiny_mfa_plugin',
+      'ui/partials/directives/enrollUserDirective.html')
+    };
+  });
 
 }());

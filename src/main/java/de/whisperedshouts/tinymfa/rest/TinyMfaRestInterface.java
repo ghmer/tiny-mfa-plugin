@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,8 @@ import de.whisperedshouts.tinymfa.util.TinyMfaUtil;
 import sailpoint.api.SailPointContext;
 import sailpoint.object.Capability;
 import sailpoint.object.Identity;
+import sailpoint.object.Request;
+import sailpoint.object.RequestDefinition;
 import sailpoint.plugin.PluginBaseHelper;
 import sailpoint.rest.plugin.AllowAll;
 import sailpoint.rest.plugin.BasePluginResource;
@@ -51,15 +54,23 @@ public class TinyMfaRestInterface extends BasePluginResource {
   private static final Logger _logger = Logger.getLogger(TinyMfaRestInterface.class);
 
   //the capability to assign once a user shall be mfa activated
-   public static final String CAPABILITY_ACTIVATED_IDENTITY_NAME = "TinyMFAActivatedIdentity";
-   
-  //the administrative SPRight name
-  public static final String SPRIGHT_ADMINISTRATOR_NAME = "TinyMfaPluginAdministrator";
-
-  // a format string for the qr code
-  public static final String QR_CODE_FORMATSTRING = "otpauth://totp/%1$s:%2$s@%1$s?algorithm=SHA1&digits=6&issuer=%1$s&period=30&secret=%3$s";
-
+  private static final String CAPABILITY_ACTIVATED_IDENTITY_NAME = "TinyMFAActivatedIdentity";
+ 
+  // the capability that gives basic access to the plugin page
+  private static final String CAPABILITY_PLUGIN_ACCESS = "TinyMFAPluginAccess";
   
+  // the capability that is given to plugin administrators
+  private static final String CAPABILITY_PLUGIN_ADMIN  = "TinyMFAAdministrator";
+  
+  // a format string for the qr code
+  private static final String QR_CODE_FORMATSTRING = "otpauth://totp/%1$s:%2$s@%1$s?algorithm=SHA1&digits=6&issuer=%1$s&period=30&secret=%3$s";
+
+  //the administrative SPRight name
+  private static final String SPRIGHT_ADMINISTRATOR_NAME = "TinyMfaPluginAdministrator";
+
+  //the workflow being used to provision the capabilities
+  private static final String TINY_MFA_ENROLL_USER_WORKFLOW = "TinyMFA Enroll User Workflow";
+
   /**
    * activates a token for an identity
    * 
@@ -131,7 +142,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
    * @return a list of all matching accounts
    */
   @GET
-  @RequiredRight(value = "TinyMfaPluginAdministrator")
+  @RequiredRight(value = SPRIGHT_ADMINISTRATOR_NAME)
   @Produces(MediaType.TEXT_PLAIN)
   @Path("accounts/{identityName}/enable/{enableStatus}")
   public Response enableAccount(@PathParam("identityName") String identityName, @PathParam("enableStatus") boolean enableStatus) {
@@ -179,6 +190,63 @@ public class TinyMfaRestInterface extends BasePluginResource {
 
     return Response.ok().entity(succeeded).build();
   }
+  
+  /**
+   * enrolls an identity to mfa by starting the configured Workflow via a Service Request
+   * @param identityName the identity to enroll
+   * @param isAdmin whether to also provision the admin capability
+   * @return true if there was no error invoking the request
+   */
+  @GET
+  @Produces(MediaType.TEXT_PLAIN)
+  @Path("accounts/{identityName}/enroll/{isAdmin}")
+  public Response enrollAccount(@PathParam("identityName") String identityName, @PathParam("isAdmin") boolean isAdmin) {
+    if (_logger.isDebugEnabled()) {
+      _logger
+          .debug(String.format("ENTERING method %s(identityName %s, isAdmin %s)", "enrollAccount", identityName, isAdmin));
+    }
+    
+    Boolean success           = false;
+    long launchTime           = System.currentTimeMillis() + 60 * 1000;
+    SailPointContext context  = null;
+    RequestDefinition reqDef  = null;
+    try {
+      Boolean sendEmail     = PluginBaseHelper.getSettingBool(getPluginName(), "sendEnrollmentNotification");
+      String template       = PluginBaseHelper.getSettingString(getPluginName(), "enrollmentNotificationTemplate");
+      
+      List<String> capList  = new ArrayList<>();
+      capList.add(CAPABILITY_PLUGIN_ACCESS);
+      if(isAdmin) {
+        capList.add(CAPABILITY_PLUGIN_ADMIN);
+      }
+      context               = getContext();
+      
+      reqDef                = context.getObjectByName(RequestDefinition.class, "Workflow Request");
+      Request request       = new Request(reqDef);
+      String requestName    = String.format("Enroll user %s for multifactor authentication", new Object[]{identityName});
+      
+      request.setName(requestName);
+      request.setAttribute("workflow", TINY_MFA_ENROLL_USER_WORKFLOW);
+      request.setAttribute("informUserEmailTemplate", template);
+      request.setAttribute("identityName", identityName);
+      request.put("identityName", identityName);
+      request.put("sendEmail", sendEmail);
+      request.put("listOfCapabilities", capList);
+      request.setNextLaunch(new Date(launchTime));
+
+      context.saveObject(request);
+      context.commitTransaction();
+      success = true;
+    } catch (GeneralException e) {
+      _logger.error(e.getMessage());
+      success = false;
+    }
+    
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "enrollAccount", success));
+    }
+    return Response.ok().entity(success).build();
+  }
 
   /**
    * returns the requested account details
@@ -188,7 +256,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
    * @return a list of all matching accounts
    */
   @GET
-  @RequiredRight(value = "TinyMfaPluginAdministrator")
+  @RequiredRight(value = SPRIGHT_ADMINISTRATOR_NAME)
   @Produces(MediaType.APPLICATION_JSON)
   @Path("accounts/{identityName}")
   public Response getAccount(@PathParam("identityName") String identityName) {
@@ -246,6 +314,49 @@ public class TinyMfaRestInterface extends BasePluginResource {
 
     return Response.ok().entity(result).build();
   }
+  
+  /**
+   * returns basic identity information. Shown on the enrollment functionality
+   * @param identityName the identity to be enrolled
+   * @return a HashMap of the found identity information
+   */
+  @GET
+  @RequiredRight(value = SPRIGHT_ADMINISTRATOR_NAME)
+  @Produces(MediaType.APPLICATION_JSON)
+  @Path("identityInfo/{identityName}")
+  public Response getIdentityInfo(@PathParam("identityName") String identityName) {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("ENTERING method %s(identityName %s)", "getIdentityInfo", identityName));
+    }
+
+    Map<String, Object> result = new HashMap<>();
+    SailPointContext context   = null;
+    try {
+      context = getContext();
+      Identity identity = context.getObject(Identity.class, identityName);
+      if(identity != null) {
+        String id = identity.getId();
+        String name = identity.getName();
+        String firstname = identity.getFirstname();
+        String lastname  =identity.getLastname();
+        String email = identity.getEmail();
+        
+        result.put("id", id);
+        result.put("name", name);
+        result.put("firstname", firstname);
+        result.put("lastname", lastname);
+        result.put("email", email);
+      }
+    } catch (GeneralException e) {
+      _logger.error(e.getMessage());
+    } 
+    
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "getIdentityInfo", result));
+    }
+
+    return Response.ok().entity(result).build();
+  }
 
   /**
    * returns accounts from the database
@@ -253,7 +364,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
    * @return a list of accounts
    */
   @GET
-  @RequiredRight(value = "TinyMfaPluginAdministrator")
+  @RequiredRight(value = SPRIGHT_ADMINISTRATOR_NAME)
   @Produces(MediaType.APPLICATION_JSON)
   @Path("accounts")
   public Response getAccounts() {
@@ -345,7 +456,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
    * @return a list containing the validation attempts
    */
   @GET
-  @RequiredRight(value = "TinyMfaPluginAdministrator")
+  @RequiredRight(value = SPRIGHT_ADMINISTRATOR_NAME)
   @Produces(MediaType.APPLICATION_JSON)
   @Path("audit")
   public Response getAudit() {
@@ -403,44 +514,6 @@ public class TinyMfaRestInterface extends BasePluginResource {
     return Response.ok().entity(result).build();
   }
   
-  @GET
-  @Produces(MediaType.APPLICATION_JSON)
-  @Path("accounts/isAdmin")
-  public Response isAdmin() {
-    if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("ENTERING method %s()", "isAdmin"));
-    }
-
-    boolean result = false;
-    try {
-      String username = getLoggedInUserName();
-      Collection<String> userRights = getLoggedInUserRights();
-      _logger.trace(userRights);
-      for(String userRight : userRights) {
-        _logger.trace("userRight: " + userRight);
-        if(userRight.equalsIgnoreCase(TinyMfaRestInterface.SPRIGHT_ADMINISTRATOR_NAME)) {
-          result = true;
-          break;
-        }
-      }
-      
-      if(username.equalsIgnoreCase("spadmin")) {
-        result = true;
-      }
-      
-    }catch(Exception e) {
-      _logger.error(e.getMessage());
-    }
-    
-    
-
-    if (_logger.isDebugEnabled()) {
-      _logger.debug(String.format("LEAVING method %s (returns: %s)", "isAdmin", result));
-    }
-
-    return Response.ok().entity(result).build();
-  }
-
   /**
    * returns the validation attempts, limits the result to the supplied number
    * 
@@ -449,7 +522,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
    * @return a list containing the validation attempts
    */
   @GET
-  @RequiredRight(value = "TinyMfaPluginAdministrator")
+  @RequiredRight(value = SPRIGHT_ADMINISTRATOR_NAME)
   @Produces(MediaType.APPLICATION_JSON)
   @Path("audit/{limit}")
   public Response getAuditWithLimit(@PathParam("limit") int limit) {
@@ -583,6 +656,44 @@ public class TinyMfaRestInterface extends BasePluginResource {
     }
     // return either an error or the qrCodeUrl
     return (hasError) ? Response.serverError().build() : Response.ok().entity(qrCodeBase64).build();
+  }
+
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  @Path("accounts/isAdmin")
+  public Response isAdmin() {
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("ENTERING method %s()", "isAdmin"));
+    }
+
+    boolean result = false;
+    try {
+      String username = getLoggedInUserName();
+      Collection<String> userRights = getLoggedInUserRights();
+      _logger.trace(userRights);
+      for(String userRight : userRights) {
+        _logger.trace("userRight: " + userRight);
+        if(userRight.equalsIgnoreCase(TinyMfaRestInterface.SPRIGHT_ADMINISTRATOR_NAME)) {
+          result = true;
+          break;
+        }
+      }
+      
+      if(username.equalsIgnoreCase("spadmin")) {
+        result = true;
+      }
+      
+    }catch(Exception e) {
+      _logger.error(e.getMessage());
+    }
+    
+    
+
+    if (_logger.isDebugEnabled()) {
+      _logger.debug(String.format("LEAVING method %s (returns: %s)", "isAdmin", result));
+    }
+
+    return Response.ok().entity(result).build();
   }
 
   /**

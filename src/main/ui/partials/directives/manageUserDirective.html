@@ -3,14 +3,16 @@
   <p>Search a user to manage using the field below.</p>
   <br />
   <p>
-  <input type="text" name="searchAccountField" data-ng-model="accountName" class="searchaccountfield" required />
-  <button data-ng-click="searchAccount()">search</button>
-  </p>
-  <div data-ng-show="successMessage" class="alert alert-success">
-    <span data-ng-show="successMessage" data-ng-cloak>{{successMessage}}</span>
+  <div class="col-xs-3">
+    <input class="form-control" id="searchAccountField" type="text" data-ng-model="accountName" required>
   </div>
-  <div data-ng-show="errorMessage" class="alert alert-danger">
-    <span data-ng-show="errorMessage" data-ng-cloak>{{errorMessage}}</span>
+  <button class="btn btn-default" data-ng-click="searchAccount()">search</button>
+  </p>
+  <div data-ng-show="accountSuccessMessage" class="alert alert-success">
+    <span data-ng-show="accountSuccessMessage" data-ng-cloak>{{accountSuccessMessage}}</span>
+  </div>
+  <div data-ng-show="accountErrorMessage" class="alert alert-danger">
+    <span data-ng-show="accountErrorMessage" data-ng-cloak>{{accountErrorMessage}}</span>
   </div>
   <br />
   <div id="tinyMfaManageUserTableDiv" data-ng-show="manageUserInfo">

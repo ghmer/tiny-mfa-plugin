@@ -34,6 +34,11 @@
       templateUrl : PluginHelper.getPluginFileUrl('tiny_mfa_plugin', 'ui/partials/admin.html'),
       controller  : 'AdminController'
     })
+    
+    .when('/audit', {
+      templateUrl : PluginHelper.getPluginFileUrl('tiny_mfa_plugin', 'ui/partials/audit.html'),
+      controller  : 'AuditController'
+    })
 
     .otherwise({redirectTo: '/'});
   });

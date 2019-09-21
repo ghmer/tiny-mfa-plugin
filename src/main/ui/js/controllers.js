@@ -155,15 +155,149 @@
 
   /** AdminController Controller **/
   app.controller('AdminController', ['$scope', '$http', '$timeout', function($scope, $http, $timeout) {
-    $scope.headline       = 'Tiny Multifactor Authentication - Admin Area';
+    $scope.headline       = 'Tiny Multifactor Authentication - Account Administration';
+    $scope.accountName    = null;
+    $scope.manageUserInfo = null;
+    $scope.identityName   = null;
+    $scope.enrollUserInfo = null;
+    $scope.withAdminCap   = false;
+    
+    $scope.accountSuccessMessage  = null;
+    $scope.accountErrorMessage    = null;
+       
+    $scope.enrollSuccessMessage   = null;
+    $scope.enrollErrorMessage     = null;
+    
+    $scope.enableAccount=function(accountName, toEnable){
+      $http({
+        method  : "GET",
+        withCredentials: true,
+        xsrfHeaderName : "X-XSRF-TOKEN",
+        xsrfCookieName : "CSRF-TOKEN",
+        url : PluginHelper.getPluginRestUrl('tiny-mfa') + '/accounts/' + accountName + '/enable/' + toEnable
+      }).then(function mySuccess(response) {
+        if(response.data === 'true') {
+          $scope.manageUserInfo = null;
+          $scope.accountName    = null;
+          $scope.accountErrorMessage   = null;
+          $scope.accountSuccessMessage = "account successfully updated";
+          $timeout(function() {
+            $scope.accountSuccessMessage   = null;
+          }, 3000);
+        } else {
+          $scope.accountErrorMessage   = "account could not be updated";
+          $scope.accountSuccessMessage = null;
+          $scope.manageUserInfo = null;
+          $scope.accountName    = null;
+          $timeout(function() {
+            $scope.accountErrorMessage   = null;
+          }, 3000);
+        }
+      }, function myError(response) {
+        $scope.accountErrorMessage   = "account could not be updated: " + response;
+        $scope.successMessage = null;
+        $scope.accountSuccessMessage = null;
+        $scope.accountName    = null;
+        $timeout(function() {
+          $scope.accountErrorMessage   = null;
+        }, 3000);
+      });
+    
+    };
+
+    $scope.searchAccount = function() {
+      $http({
+        method  : "GET",
+        withCredentials: true,
+        xsrfHeaderName : "X-XSRF-TOKEN",
+        xsrfCookieName : "CSRF-TOKEN",
+        url : PluginHelper.getPluginRestUrl('tiny-mfa') + '/accounts/' + $scope.accountName
+      }).then(function mySuccess(response) {
+        $scope.manageUserInfo = response.data;
+        $scope.accountName    = null;
+        if($scope.manageUserInfo.length <= 0) {
+          $scope.manageUserInfo = null;
+          $scope.accountErrorMessage = "account could not be found";
+          $timeout(function() {
+            $scope.accountErrorMessage   = null;
+          }, 3000);
+        }
+      }, function myError(response) {
+        $scope.accountErrorMessage = "There was an issue loading the accounts";
+        $timeout(function() {
+          $scope.accountErrorMessage   = null;
+        }, 3000);
+      });
+    };
+    
+    
+    $scope.getIdentityInfo = function() {
+      $http({
+        method  : "GET",
+        withCredentials: true,
+        xsrfHeaderName : "X-XSRF-TOKEN",
+        xsrfCookieName : "CSRF-TOKEN",
+        url : PluginHelper.getPluginRestUrl('tiny-mfa') + '/identityInfo/' + $scope.identityName
+      }).then(function mySuccess(response) {
+        $scope.enrollUserInfo = response.data;
+        $scope.identityName   = null;
+        if($scope.enrollUserInfo.id == null) {
+          $scope.enrollUserInfo = null;
+          $scope.enrollErrorMessage = "identity could not be found";
+          $timeout(function() {
+            $scope.enrollErrorMessage   = null;
+          }, 3000);
+        }
+      }, function myError(response) {
+        $scope.enrollErrorMessage = "There was an issue loading the identity";
+        $timeout(function() {
+          $scope.enrollErrorMessage   = null;
+        }, 3000);
+      });
+    };
+    
+    $scope.enrollAccount = function() {
+      $http({
+        method  : "GET",
+        withCredentials: true,
+        xsrfHeaderName : "X-XSRF-TOKEN",
+        xsrfCookieName : "CSRF-TOKEN",
+        url : PluginHelper.getPluginRestUrl('tiny-mfa') + '/accounts/' + $scope.enrollUserInfo.name + '/enroll/' + $scope.withAdminCap
+      }).then(function mySuccess(response) {
+        $scope.enrollUserInfo = null;
+        $scope.identityName   = null;
+        if(response.data === "true") {
+          $scope.enrollSuccessMessage = "Identity successfully enrolled!";
+          $timeout(function() {
+            $scope.enrollSuccessMessage   = null;
+          }, 3000);
+        } else {
+          $scope.errorMessage = "There was an issue enrolling the identity";
+          $timeout(function() {
+            $scope.enrollErrorMessage   = null;
+          }, 3000);
+        }
+      }, function myError(response) {
+        $scope.enrollUserInfo = null;
+        $scope.identityName   = null;
+        $scope.enrollErrorMessage = "There was an issue enrolling the identity";
+        $timeout(function() {
+          $scope.enrollErrorMessage   = null;
+        }, 3000);
+      });
+    };
+
+  }]);
+  
+  /** AuditController Controller **/
+  app.controller('AuditController', ['$scope', '$http', '$timeout', function($scope, $http, $timeout) {
+    $scope.headline       = 'Tiny Multifactor Authentication - Audits';
     $scope.currentPage    = 1;
     $scope.numberLimit    = 10;
     $scope.start          = 0;
     $scope.maxNumber      = 100;
     $scope.validations    = [];
     $scope.numberLimits   = [5,10,25,50,100];
-    $scope.accountName    = null;
-    $scope.manageUserInfo = null;
     $scope.errorMessage   = null;
     $scope.successMessage = null;
     
@@ -216,68 +350,6 @@
       console.log("next pages");
       $scope.start=$scope.start - $scope.numberLimit;
       console.log( $scope.start)
-    };
-    
-    $scope.enableAccount=function(accountName, toEnable){
-      $http({
-        method  : "GET",
-        withCredentials: true,
-        xsrfHeaderName : "X-XSRF-TOKEN",
-        xsrfCookieName : "CSRF-TOKEN",
-        url : PluginHelper.getPluginRestUrl('tiny-mfa') + '/accounts/' + accountName + '/enable/' + toEnable
-      }).then(function mySuccess(response) {
-        if(response.data === 'true') {
-          $scope.manageUserInfo = null;
-          $scope.accountName    = null;
-          $scope.errorMessage   = null;
-          $scope.successMessage = "account successfully updated";
-          $timeout(function() {
-            $scope.successMessage   = null;
-          }, 3000);
-        } else {
-          $scope.errorMessage   = "account could not be updated";
-          $scope.successMessage = null;
-          $scope.manageUserInfo = null;
-          $scope.accountName    = null;
-          $timeout(function() {
-            $scope.errorMessage   = null;
-          }, 3000);
-        }
-      }, function myError(response) {
-        $scope.errorMessage   = "account could not be updated: " + response;
-        $scope.successMessage = null;
-        $scope.manageUserInfo = null;
-        $scope.accountName    = null;
-        $timeout(function() {
-          $scope.errorMessage   = null;
-        }, 3000);
-      });
-    
-    };
-
-    $scope.searchAccount = function() {
-      $http({
-        method  : "GET",
-        withCredentials: true,
-        xsrfHeaderName : "X-XSRF-TOKEN",
-        xsrfCookieName : "CSRF-TOKEN",
-        url : PluginHelper.getPluginRestUrl('tiny-mfa') + '/accounts/' + $scope.accountName
-      }).then(function mySuccess(response) {
-        $scope.manageUserInfo = response.data;
-        $scope.accountName    = null;
-        if($scope.manageUserInfo.length <= 0) {
-          $scope.manageUserInfo = null;
-          $scope.errorMessage = "account could not be found";
-          $timeout(function() {
-            $scope.errorMessage   = null;
-          }, 3000);
-        }
-      }, function myError(response) {
-        $scope.errorMessage = "There was an issue loading the accounts";
-        $timeout(function() {
-          $scope.errorMessage   = null;
-        }, 3000);
-      });
     };
     
     $scope.getValidationAttempts = function() {
