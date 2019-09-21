@@ -25,16 +25,24 @@ import org.apache.log4j.Logger;
  */
 public class TinyMfaImplementation {
 
-  //a logger object. Make use of it!
+  /**
+   * a logger object. Make use of it!
+   */
   private static final Logger _logger = Logger.getLogger(TinyMfaImplementation.class);
    
-  // this is the default, static width used in the dynamic truncation
+  /**
+   * this is the default, static width used in the dynamic truncation
+   */
   public static final int DYNAMIC_TRUNCATION_WIDTH = 4;
 
-  // that big is our key to be
+  /**
+   * that big is our key to be
+   */
   public static final int FINAL_SECRET_SIZE = 16;
 
-  // this is the algorithm that is used to generate the rfc2104hmac hexstring
+  /**
+   * this is the algorithm that is used to generate the rfc2104hmac hexstring
+   */
   public static final String HMAC_SHA1_ALGORITHM = "HmacSHA1";
   
   /**

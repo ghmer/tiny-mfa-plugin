@@ -50,25 +50,39 @@ import sailpoint.tools.GeneralException;
 @Produces(MediaType.TEXT_PLAIN)
 @AllowAll
 public class TinyMfaRestInterface extends BasePluginResource {
-  // a logger object. Make use of it!
+  /**
+   * a logger object. Make use of it!
+   */
   private static final Logger _logger = Logger.getLogger(TinyMfaRestInterface.class);
 
-  //the capability to assign once a user shall be mfa activated
+  /**
+   * the capability to assign once a user shall be mfa activated
+   */
   private static final String CAPABILITY_ACTIVATED_IDENTITY_NAME = "TinyMFAActivatedIdentity";
  
-  // the capability that gives basic access to the plugin page
+  /**
+   * the capability that gives basic access to the plugin page
+   */
   private static final String CAPABILITY_PLUGIN_ACCESS = "TinyMFAPluginAccess";
   
-  // the capability that is given to plugin administrators
+  /**
+   * the capability that is given to plugin administrators
+   */
   private static final String CAPABILITY_PLUGIN_ADMIN  = "TinyMFAAdministrator";
   
-  // a format string for the qr code
+  /**
+   * a format string for the qr code
+   */
   private static final String QR_CODE_FORMATSTRING = "otpauth://totp/%1$s:%2$s@%1$s?algorithm=SHA1&digits=6&issuer=%1$s&period=30&secret=%3$s";
 
-  //the administrative SPRight name
+  /**
+   * the administrative SPRight name
+   */
   private static final String SPRIGHT_ADMINISTRATOR_NAME = "TinyMfaPluginAdministrator";
 
-  //the workflow being used to provision the capabilities
+  /**
+   * the workflow being used to provision the capabilities
+   */
   private static final String TINY_MFA_ENROLL_USER_WORKFLOW = "TinyMFA Enroll User Workflow";
 
   /**
@@ -198,6 +212,7 @@ public class TinyMfaRestInterface extends BasePluginResource {
    * @return true if there was no error invoking the request
    */
   @GET
+  @RequiredRight(value = SPRIGHT_ADMINISTRATOR_NAME)
   @Produces(MediaType.TEXT_PLAIN)
   @Path("accounts/{identityName}/enroll/{isAdmin}")
   public Response enrollAccount(@PathParam("identityName") String identityName, @PathParam("isAdmin") boolean isAdmin) {
@@ -658,6 +673,10 @@ public class TinyMfaRestInterface extends BasePluginResource {
     return (hasError) ? Response.serverError().build() : Response.ok().entity(qrCodeBase64).build();
   }
 
+  /**
+   * returns whether the logged in user has the plugin admin capability assigned
+   * @return true if the admin capability is assigned to the logged in user
+   */
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @Path("accounts/isAdmin")

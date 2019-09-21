@@ -36,8 +36,14 @@ import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
  */
 public class TinyMfaUtil {
 
-  //a logger object. Make use of it!
+  /**
+   * a logger object. Make use of it!
+   */
   private static final Logger _logger     = Logger.getLogger(TinyMfaUtil.class);
+  
+  /**
+   * The date format to be used when formatting dates
+   */
   public static final String DATE_FORMAT  = "yyyy-MM-dd HH:mm:ss z";
  
   /**

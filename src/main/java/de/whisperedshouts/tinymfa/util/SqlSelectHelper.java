@@ -10,39 +10,78 @@ import java.sql.SQLException;
 import org.apache.log4j.Logger;
 
 /**
+ * This is a helper utility to generate certain SQL queries for different database engines.
+ * Used by the tinyMFA plugin.
  * @author Mario Enrico Ragucci, mario@whisperedshouts.de
  *
  */
 public class SqlSelectHelper {
   
+  /**
+   * a log4j logger
+   */
   private static final Logger _logger     = Logger.getLogger(SqlSelectHelper.class);
   
+  /**
+   * Oracle database product name
+   */
   private static final String SQL_PRODUCT_NAME_ORACLE  = "Oracle";
+  
+  /**
+   * DB2 database product name
+   */
   private static final String SQL_PRODUCT_NAME_DB2     = "DB2";
+  
+  /**
+   * Microsoft SQL database product name
+   */
   private static final String SQL_PRODUCT_NAME_MSSQL   = "Microsoft SQL Server";
+  
+  /**
+   * MySQL database product name
+   */
   private static final String SQL_PRODUCT_NAME_MYSQL   = "MySQL";
   
-//check for failed validation attempts
+  /**
+   * SQL Query: check for failed validation attempts
+   */
   private static final String SQL_COUNT_VALIDATION_ATTEMPTS = "SELECT COUNT(*) FROM MFA_VALIDATION_ATTEMPTS WHERE CTS = ? and ACCOUNT_NAME = ? and SUCCEEDED = ?";
 
- //insert a new account into the database. This happens on first usage of the  plugin
+  /**
+   * SQL Query: insert a new account into the database. This happens on first usage of the  plugin
+   */
   private static final String SQL_CREATE_NEW_ACCOUNT_QUERY = "INSERT INTO MFA_ACCOUNTS(ACCOUNT_NAME, USERPASSWORD, ISENABLED) VALUES(?,?,?)";
  
- //update the isDisabled setting of the account
+  /**
+   * SQL Query: update the isDisabled setting of the account
+   */
   private static final String SQL_UPDATE_IS_ENABLED_STATUS = "UPDATE MFA_ACCOUNTS SET ISENABLED=? WHERE ACCOUNT_NAME=?";
 
- // insert a new validation attempt into the database
+  /**
+   * SQL Query: insert a new validation attempt into the database
+   */
   private static final String SQL_INSERT_VALIDATION_ATTEMPT = "INSERT INTO MFA_VALIDATION_ATTEMPTS(ACCESS_TIME,CTS,ACCOUNT_NAME,ACCOUNT_ENABLED,SUCCEEDED) VALUES(?,?,?,?,?)";
 
- // check if user is disabled
+  /**
+   * SQL Query: check if user is disabled
+   */
   private static final String SQL_IS_ACCOUNT_ENABLED = "SELECT ISENABLED FROM MFA_ACCOUNTS WHERE ACCOUNT_NAME=?";
 
- // the SQL query used to retrieve the userkey from the database
+  /**
+   * SQL Query: the SQL query used to retrieve the userkey from the database
+   */
   private static final String SQL_RETRIEVE_PASSWORD_QUERY = "SELECT USERPASSWORD FROM MFA_ACCOUNTS WHERE ACCOUNT_NAME=?";
 
- //select specific account attributes
+  /**
+   * SQL Query: select specific account attributes
+   */
   private static final String SQL_SELECT_ACCOUNT = "SELECT ID, ACCOUNT_NAME, ISENABLED FROM MFA_ACCOUNTS WHERE ACCOUNT_NAME=?";
   
+  /**
+   * various queries that the SqlSelectHelper can process
+   * @author mario.ragucci
+   *
+   */
   public static enum QUERY_TYPE {
     COUNT_VALIDATION_ATTEMPTS,
     CREATE_NEW_ACCOUNT,
